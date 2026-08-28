@@ -18,6 +18,8 @@ const ctx = new Proxy({}, {
 
 const listeners = Object.create(null);
 const classicIdleFrame = { tag: "classic-idle" };
+const agileIdleFrame = { tag: "agile-idle" };
+const heavyIdleFrame = { tag: "heavy-idle" };
 const unloadedClassicSelectFrame = { tag: "classic-select-unloaded", ready: false };
 const unloadedClassicCrouchFrame = { tag: "classic-crouch-unloaded", ready: false };
 const unloadedClassicRunFrame = { tag: "classic-run-unloaded", ready: false };
@@ -34,6 +36,8 @@ const windowMock = {
     guns: {},
     heroes: {
       classic: { idle: classicIdleFrame, select: unloadedClassicSelectFrame, crouch: unloadedClassicCrouchFrame, runFrames: [unloadedClassicRunFrame] },
+      agile: { idle: agileIdleFrame },
+      heavy: { idle: heavyIdleFrame },
     },
   }) },
   innerWidth: 1280,
@@ -58,6 +62,7 @@ const instrumented = source.replace(marker, `  requestAnimationFrame(loop);
       window.__YAEL_MOUSE_DOWN_HANDLER__({ button: 0, preventDefault() {} });
     },
     characterSelect(level) { openCharacterSelect(level); },
+    character() { return { state, cursor: characterCursor, selected: selectedCharacter }; },
     play() { startGame(1); player.x = 400; return { state, level: currentLevel, x: player.x }; },
     crouch() { startGame(1); player.crouch = true; player.onGround = true; },
     run() { startGame(1); player.onGround = true; player.vx = 5; player.anim = 0; },
@@ -133,6 +138,10 @@ try {
   characterUpdateError = err;
 }
 check(!characterUpdateError, "la pantalla de personaje pausa la física mientras aún no hay jugador");
+ui.key("ArrowRight");
+check(ui.character().state === "character_select" && ui.character().cursor === 1, "el teclado cambia al segundo personaje sin confirmar todavía");
+ui.mouseDown(800, 200);
+check(ui.character().state === "character_select" && ui.character().cursor === 2, "clic en la tarjeta selecciona el tercer personaje sin salir de la pantalla");
 ui.mouseDown(480, 470);
 check(ui.menu().state === "loadout", "el botón de confirmar personaje responde al clic");
 ui.play();
@@ -143,11 +152,11 @@ check(ui.menu().state === "menu", "el botón MENÚ vuelve a la selección de niv
 ui.crouch();
 calls.length = 0;
 ui.draw();
-check(calls.some((call) => call.key === "drawImage" && call.args[0] === classicIdleFrame), "agacharse conserva un sprite visible mientras carga su pose propia");
+check(calls.some((call) => call.key === "drawImage" && call.args[0] === heavyIdleFrame), "el personaje elegido conserva un sprite visible al agacharse mientras carga su pose propia");
 ui.run();
 calls.length = 0;
 ui.draw();
-check(calls.some((call) => call.key === "drawImage" && call.args[0] === classicIdleFrame), "correr conserva un sprite visible mientras carga su ciclo propio");
+check(calls.some((call) => call.key === "drawImage" && call.args[0] === heavyIdleFrame), "el personaje elegido conserva un sprite visible al correr mientras carga su ciclo propio");
 calls.length = 0;
 ui.renderAt(180);
 check(!calls.some((call) => call.key === "fillRect" && call.args[0] === 0 && call.args[1] === 0 && call.args[2] === 960 && call.args[3] === 540 && call.fillStyle === "rgba(180,200,255,0.12)"), "el juego no aplica flashes blancos periódicos a pantalla completa");

@@ -133,6 +133,8 @@
   let groundY = 13;
   let risingLavaY = 999999;
   let risingLavaSpeed = 0;
+  let verticalHazardMaxSpeed = 0;
+  let verticalHazardAcceleration = 0;
   let verticalHazard = false;
   let risingLavaX = -999999;
   let lavaChase = false;
@@ -603,10 +605,10 @@
       const index = Math.floor((mouse.x - 54) / 290);
       if (mouse.y >= 126 && mouse.y <= 420 && index >= 0 && index < CHARACTERS.length) {
         characterCursor = index;
-        confirmCharacterSelect();
+        // La tarjeta selecciona; la confirmación queda en el botón o ENTER.
+        // Así el jugador puede ver y cambiar su elección antes de continuar.
+        sfx.switch();
       } else if (mouse.x >= 310 && mouse.x <= 650 && mouse.y >= 454 && mouse.y <= 496) {
-        // El botón inferior es una segunda ruta explícita de confirmación;
-        // antes sólo respondían las tarjetas y el menú parecía congelado.
         confirmCharacterSelect();
       }
     } else if (state === "loadout") {
@@ -726,10 +728,14 @@
       const startY = lvl.verticalStartY === undefined ? 175 : lvl.verticalStartY;
       player.y = startY * TILE - PHYS.PLAYER_H;
       risingLavaY = verticalHazard ? (startY + 4) * TILE : 999999;
-      risingLavaSpeed = verticalHazard ? 0.92 : 0;
+      risingLavaSpeed = verticalHazard ? (lvl.verticalHazardSpeed || 0.92) : 0;
+      verticalHazardMaxSpeed = verticalHazard ? (lvl.verticalHazardMaxSpeed || risingLavaSpeed) : 0;
+      verticalHazardAcceleration = verticalHazard ? (lvl.verticalHazardAcceleration || 0) : 0;
     } else {
       risingLavaY = 999999;
       risingLavaSpeed = 0;
+      verticalHazardMaxSpeed = 0;
+      verticalHazardAcceleration = 0;
       risingLavaX = lavaChase ? 0 : -999999;
     }
 
@@ -1924,6 +1930,7 @@
     if (isVerticalLevel && verticalHazard) {
       if (risingLavaY > 26 * TILE) {
         risingLavaY -= risingLavaSpeed;
+        risingLavaSpeed = Math.min(verticalHazardMaxSpeed, risingLavaSpeed + verticalHazardAcceleration);
       }
       if (p.y + p.h >= risingLavaY) {
         p.inLava = true;

@@ -631,6 +631,11 @@
       spawns: SPAWNS_L3,
       levelNum: 19,
       isVertical: true,
+      // La lava da margen en la base y aprieta en la subida final.
+      verticalHazard: true,
+      verticalHazardSpeed: 0.82,
+      verticalHazardMaxSpeed: 1.08,
+      verticalHazardAcceleration: 0.0001,
       name: "NIVEL 19: TORRE DEL CATACLISMO",
       campaign: campaignLevel(19),
       bossSpawn: { ...SPAWNS_L3.boss, type: "alien_ship", triggerY: 36 },

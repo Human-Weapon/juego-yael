@@ -49,6 +49,12 @@ const instrumented = source.replace(marker, `  requestAnimationFrame(loop);
       updateBullets();
       return {before,after:target.hp,damage:before-target.hp};
     },
+    verticalLavaProbe() {
+      highestUnlockedLevel=CAMPAIGN.length; startGame(19);
+      const before=risingLavaY; const initialSpeed=risingLavaSpeed;
+      updatePlayer();
+      return {level:levelData.levelNum,boss:bossSpawnData.type,vertical:isVerticalLevel,hazard:verticalHazard,before,after:risingLavaY,initialSpeed,maxSpeed:verticalHazardMaxSpeed};
+    },
     weaponMuzzleProbe() {
       highestUnlockedLevel=CAMPAIGN.length; startGame(1); enemies=[]; bullets=[];
       mouse.x=VIEW_W-40; mouse.y=player.y-cam.y+14;
@@ -89,6 +95,10 @@ check(shield.shots>0,"el guardia de escudo responde con un ataque a distancia",J
 
 const cannon=api.cannonSweepProbe();
 check(cannon.damage===95,"el Titán registra impactos aunque cruce una hitbox en un fotograma",JSON.stringify(cannon));
+
+const vertical=api.verticalLavaProbe();
+check(vertical.level===19 && vertical.boss==="alien_ship" && vertical.vertical && vertical.hazard,"el nivel 19 conserva la torre vertical y la Nave Nodriza",JSON.stringify(vertical));
+check(vertical.after<vertical.before && vertical.initialSpeed>=0.7 && vertical.initialSpeed<=0.95 && vertical.maxSpeed<=1.15,"la lava asciende con margen inicial y un limite de velocidad retador",JSON.stringify(vertical));
 
 const muzzle=api.weaponMuzzleProbe();
 check(muzzle.length===11 && muzzle.every((shot)=>shot.offset>30),"cada arma nace en la boca visible de su sprite",JSON.stringify(muzzle));
