@@ -87,12 +87,15 @@
   ];
 
   // Cada personaje modifica el manejo, no sólo el retrato. El clásico se
-  // mantiene como referencia de control; Ágil gana verticalidad a cambio de
-  // supervivencia y Pesado sustituye por completo el salto por escalada.
+  // mantiene como referencia; los tres nuevos añaden regeneración, economía
+  // de especiales y movilidad aérea, cada uno con una desventaja clara.
   const CHARACTERS = [
     { id: "classic", name: "CLÁSICO", title: "CLÁSICO", maxHp: 7, run: 1, acc: 1, airAcc: 1, jump: -12.1, holdGravity: 0.36, gravity: 0.42, maxFall: 11.2, reloadMultiplier: 1, ammoMultiplier: 1, dashSpeed: 12, dashFrames: 8, dashInv: 30, dashCooldown: 42, climb: false, color: "#ffe29a", description: "7 corazones · salto controlado" },
     { id: "agile", name: "AGIL", title: "SCOUT AGIL", maxHp: 2, run: 2, acc: 2, airAcc: 2, jump: -18, holdGravity: 0.72, gravity: 0.84, maxFall: 22.4, reloadMultiplier: 1 / 2.6, damageMultiplier: 0.75, ammoMultiplier: 1, dashSpeed: 15, dashFrames: 9, dashInv: 30, dashCooldown: 45, airJumps: 1, climb: false, color: "#5cf6ff", description: "2 corazones · 2× velocidad · doble salto" },
     { id: "heavy", name: "PESADO", title: "ESCALADOR PESADO", maxHp: 16, run: 0.72, acc: 0.78, airAcc: 0.55, jump: 0, holdGravity: 0.4, gravity: 0.45, maxFall: 10, reloadMultiplier: 1, ammoMultiplier: 2, dashSpeed: 19, dashFrames: 26, dashInv: 30, dashCooldown: 150, dashDamage: 42, dashKnockback: 9, climb: true, climbSpeed: 3.1, color: "#ff9f1c", description: "16 corazones · munición doble · escala" },
+    { id: "medic", name: "MÉDICA", title: "MÉDICA DE CAMPAÑA", maxHp: 6, run: 0.92, acc: 0.95, airAcc: 1, jump: -11.4, holdGravity: 0.34, gravity: 0.4, maxFall: 10.8, reloadMultiplier: 1.12, ammoMultiplier: 0.9, damageMultiplier: 0.82, specialCooldownMultiplier: 1.22, regenFrames: 180, dashSpeed: 12, dashFrames: 8, dashInv: 30, dashCooldown: 48, climb: false, color: "#72f1b8", description: "6 corazones · regenera 1 vida cada 3s" },
+    { id: "technician", name: "TÉCNICA", title: "TÉCNICA DE CAMPO", maxHp: 4, run: 0.88, acc: 0.9, airAcc: 0.88, jump: -13.2, holdGravity: 0.38, gravity: 0.46, maxFall: 11.5, reloadMultiplier: 1.18, ammoMultiplier: 0.68, specialCooldownMultiplier: 0.55, dashSpeed: 13, dashFrames: 8, dashInv: 30, dashCooldown: 54, climb: false, color: "#c77dff", description: "4 corazones · especiales 45% más rápidos" },
+    { id: "phantom", name: "FANTASMA", title: "FANTASMA DE FASE", maxHp: 4, run: 1.3, acc: 1.5, airAcc: 1.7, jump: -15.2, holdGravity: 0.58, gravity: 0.62, maxFall: 16, reloadMultiplier: 1.35, ammoMultiplier: 0.85, damageMultiplier: 0.8, dashSpeed: 18, dashFrames: 10, dashInv: 34, dashCooldown: 28, airJumps: 2, climb: false, color: "#f72585", description: "4 corazones · triple salto · recarga lenta" },
   ];
 
   const keys = Object.create(null);
@@ -435,7 +438,9 @@
     if (state === "character_select") {
       if (k === "arrowleft" || k === "a") { characterCursor = (characterCursor + CHARACTERS.length - 1) % CHARACTERS.length; sfx.switch(); }
       else if (k === "arrowright" || k === "d") { characterCursor = (characterCursor + 1) % CHARACTERS.length; sfx.switch(); }
-      else if (k === "1" || k === "2" || k === "3") { characterCursor = Number(k) - 1; sfx.switch(); }
+      else if (/^[1-6]$/.test(k)) { characterCursor = Number(k) - 1; sfx.switch(); }
+      else if (k === "arrowup" || k === "w") { characterCursor = (characterCursor + CHARACTERS.length - 3) % CHARACTERS.length; sfx.switch(); }
+      else if (k === "arrowdown" || k === "s") { characterCursor = (characterCursor + 3) % CHARACTERS.length; sfx.switch(); }
       else if (k === "enter" || k === " ") confirmCharacterSelect();
       else if (k === "escape") state = "menu";
       return;
@@ -602,8 +607,10 @@
         openCharacterSelect(menuSelectedLevel);
       }
     } else if (state === "character_select") {
-      const index = Math.floor((mouse.x - 54) / 290);
-      if (mouse.y >= 126 && mouse.y <= 420 && index >= 0 && index < CHARACTERS.length) {
+      const column = Math.floor((mouse.x - 54) / 290);
+      const row = mouse.y >= 274 ? 1 : 0;
+      const index = row * 3 + column;
+      if (mouse.y >= 100 && mouse.y <= 436 && column >= 0 && column < 3 && index >= 0 && index < CHARACTERS.length) {
         characterCursor = index;
         // La tarjeta selecciona; la confirmación queda en el botón o ENTER.
         // Así el jugador puede ver y cambiar su elección antes de continuar.
@@ -654,6 +661,7 @@
       characterIndex: selectedCharacter,
       hp: character.maxHp,
       maxHp: character.maxHp,
+      regenTimer: character.regenFrames || 0,
       move: character,
       inv: 0,
       coyote: 0,
@@ -1172,7 +1180,7 @@
     const g = gunPos();
     const m = mouseWorld();
     const aim = angTo(g.x, g.y, m.x, m.y);
-    player.specialCool = s.cooldown;
+    player.specialCool = Math.max(1, Math.round(s.cooldown * (player.move.specialCooldownMultiplier || 1)));
     if (s.medDrone) {
       gadgets.push({ type: s.id, medDrone: true, x: player.x + player.w / 2, y: player.y - 12, r: 12, life: s.duration, healTimer: 36, color: s.color });
       floatText(player.x, player.y - 24, "DRON MEDICO ACTIVO", s.color);
@@ -1719,7 +1727,8 @@
 
   function hurtPlayer(dmg) {
     if (player.inv > 0 || player.dashTimer > 0 || player.dead) return;
-    player.hp -= dmg;
+    const reduction = player.move && player.move.damageReduction ? player.move.damageReduction : 0;
+    player.hp -= Math.max(1, Math.ceil(dmg * (1 - reduction)));
     player.inv = 80;
     sfx.hurt();
     burst(player.x + player.w / 2, player.y + player.h / 2, "#ef233c", 12);
@@ -1739,6 +1748,7 @@
     const p = player;
     p.dead = false;
     p.hp = p.maxHp;
+    p.regenTimer = p.move.regenFrames || 0;
     p.h = PHYS.PLAYER_H;
     p.crouch = false;
     p.vx = 0;
@@ -1969,6 +1979,17 @@
     if (p.dashCool > 0) p.dashCool--;
     if (p.cool > 0) p.cool--;
     if (p.specialCool > 0) p.specialCool--;
+    if (p.move.regenFrames) {
+      p.regenTimer--;
+      if (p.regenTimer <= 0) {
+        if (p.hp < p.maxHp) {
+          p.hp++;
+          floatText(p.x + p.w / 2, p.y - 16, "+VIDA", p.move.color);
+          burst(p.x + p.w / 2, p.y + p.h / 2, p.move.color, 5);
+        }
+        p.regenTimer = p.move.regenFrames;
+      }
+    }
     if (p.parryTimer > 0) p.parryTimer--;
     if (p.reloading) {
       p.reloadTimer--;
@@ -3712,6 +3733,26 @@
     }
     blit(frame, feetX, feetY, p.facing < 0);
 
+    // Los tres nuevos perfiles usan el atlas base mientras se conservan sus
+    // siluetas propias en selección. Este distintivo mantiene visible en
+    // partida qué perfil está activo incluso sin añadir otro PNG al paquete.
+    if (!SPR.heroes || !SPR.heroes[p.character]) {
+      ctx.save();
+      ctx.strokeStyle = p.move.color;
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.9;
+      if (p.character === "medic") {
+        ctx.strokeRect(feetX - 13, feetY - 38, 26, 30);
+        ctx.fillStyle = p.move.color; ctx.fillRect(feetX - 2, feetY - 31, 4, 14); ctx.fillRect(feetX - 7, feetY - 26, 14, 4);
+      } else if (p.character === "technician") {
+        ctx.strokeRect(feetX - 13, feetY - 38, 26, 30);
+        ctx.beginPath(); ctx.moveTo(feetX + 7, feetY - 38); ctx.lineTo(feetX + 14, feetY - 48); ctx.stroke();
+      } else if (p.character === "phantom") {
+        ctx.beginPath(); ctx.moveTo(feetX, feetY - 48); ctx.lineTo(feetX + 13, feetY - 23); ctx.lineTo(feetX, feetY - 8); ctx.lineTo(feetX - 13, feetY - 23); ctx.closePath(); ctx.stroke();
+      }
+      ctx.restore();
+    }
+
     if (p.dashMoveTimer > 0) {
       ctx.save();
       ctx.globalAlpha = 0.32;
@@ -4809,44 +4850,64 @@
     ctx.fillText("Progreso: " + Math.max(0, highestUnlockedLevel - 1) + "/" + CAMPAIGN.length + " jefes derrotados · P: Pausa · M: Silencio", VIEW_W / 2, 480);
   }
 
+  function drawCharacterIcon(character, x, y, w, h) {
+    const cx = x + w / 2;
+    const cy = y + h / 2;
+    ctx.save();
+    ctx.strokeStyle = character.color;
+    ctx.fillStyle = character.color;
+    ctx.lineWidth = 4;
+    if (character.id === "medic") {
+      ctx.beginPath(); ctx.arc(cx, cy - 19, 16, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillRect(cx - 18, cy + 2, 36, 30);
+      ctx.fillStyle = "#07060c"; ctx.fillRect(cx - 4, cy - 28, 8, 18); ctx.fillRect(cx - 9, cy - 23, 18, 8);
+      ctx.fillStyle = "#07060c"; ctx.fillRect(cx - 5, cy + 9, 10, 18); ctx.fillRect(cx - 10, cy + 14, 20, 8);
+    } else if (character.id === "technician") {
+      ctx.fillRect(cx - 19, cy - 28, 38, 30);
+      ctx.beginPath(); ctx.moveTo(cx - 24, cy + 34); ctx.lineTo(cx, cy + 2); ctx.lineTo(cx + 24, cy + 34); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(cx + 11, cy - 28); ctx.lineTo(cx + 28, cy - 48); ctx.stroke();
+      ctx.fillStyle = "#07060c"; ctx.fillRect(cx - 10, cy - 18, 20, 6); ctx.fillRect(cx - 4, cy + 10, 8, 14);
+    } else {
+      ctx.beginPath(); ctx.moveTo(cx, cy - 44); ctx.lineTo(cx + 25, cy); ctx.lineTo(cx, cy + 43); ctx.lineTo(cx - 25, cy); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#07060c"; ctx.fillRect(cx - 4, cy - 20, 8, 38);
+      ctx.strokeStyle = "rgba(247,37,133,.55)"; ctx.beginPath(); ctx.moveTo(cx - 28, cy + 30); ctx.lineTo(cx - 48, cy + 48); ctx.moveTo(cx + 28, cy + 30); ctx.lineTo(cx + 48, cy + 48); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   function drawCharacterSelect() {
     drawBg();
     ctx.fillStyle = "rgba(7,6,12,.94)"; roundRect(30, 18, VIEW_W - 60, VIEW_H - 36, 10); ctx.fill();
     ctx.strokeStyle = "#e0b33a"; ctx.lineWidth = 3; roundRect(30, 18, VIEW_W - 60, VIEW_H - 36, 10); ctx.stroke();
     ctx.textAlign = "center"; ctx.fillStyle = "#5cf6ff"; ctx.font = "bold 24px Courier New";
-    ctx.fillText("ELEGIR PERSONAJE · NIVEL " + characterTargetLevel, VIEW_W / 2, 56);
+    ctx.fillText("ELEGIR PERSONAJE · NIVEL " + characterTargetLevel, VIEW_W / 2, 52);
     ctx.fillStyle = "#8b9bb4"; ctx.font = "11px Courier New";
-    ctx.fillText("← / → ELIGE · 1-3 ATAJO · ENTER CONFIRMA", VIEW_W / 2, 80);
+    ctx.fillText("← / → ELIGE · ↑ / ↓ FILA · 1-6 ATAJO · ENTER CONFIRMA", VIEW_W / 2, 77);
     for (let i = 0; i < CHARACTERS.length; i++) {
-      const c = CHARACTERS[i]; const selected = characterCursor === i; const x = 54 + i * 290; const y = 126;
-      ctx.fillStyle = selected ? "rgba(30,58,68,.96)" : "rgba(15,18,28,.9)"; roundRect(x, y, 260, 292, 8); ctx.fill();
-      ctx.strokeStyle = selected ? c.color : "#343a4a"; ctx.lineWidth = selected ? 4 : 1; roundRect(x, y, 260, 292, 8); ctx.stroke();
+      const c = CHARACTERS[i]; const selected = characterCursor === i;
+      const x = 54 + (i % 3) * 290; const y = 100 + Math.floor(i / 3) * 174;
+      ctx.fillStyle = selected ? "rgba(30,58,68,.96)" : "rgba(15,18,28,.9)"; roundRect(x, y, 260, 156, 8); ctx.fill();
+      ctx.strokeStyle = selected ? c.color : "#343a4a"; ctx.lineWidth = selected ? 4 : 1; roundRect(x, y, 260, 156, 8); ctx.stroke();
       const hero = SPR.heroes && SPR.heroes[c.id]; const frame = hero && (hero.select && hero.select.ready ? hero.select : hero.idle);
       if (selected) {
-        ctx.save();
-        ctx.fillStyle = c.color;
-        ctx.globalAlpha = 0.14 + Math.sin(time * 0.09) * 0.04;
-        ctx.beginPath(); ctx.arc(x + 130, y + 64, 76, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
+        ctx.save(); ctx.fillStyle = c.color; ctx.globalAlpha = 0.14 + Math.sin(time * 0.09) * 0.04;
+        ctx.beginPath(); ctx.arc(x + 50, y + 57, 48, 0, Math.PI * 2); ctx.fill(); ctx.restore();
       }
-      if (frame) ctx.drawImage(frame, x + 82, y + 8, 96, 120);
-      ctx.fillStyle = c.color; ctx.font = "bold 17px Courier New"; ctx.fillText((selected ? "▶ " : "") + c.title, x + 130, y + 151);
-      ctx.fillStyle = "#fff"; ctx.font = "bold 13px Courier New"; ctx.fillText(c.maxHp + " CORAZONES", x + 130, y + 181);
-      ctx.fillStyle = "#aeb8ca"; ctx.font = "11px Courier New"; ctx.fillText(c.description, x + 130, y + 208);
-      const speedText = c.climb ? "MOVIMIENTO: LENTO · ESCALADA" : "VELOCIDAD: " + (c.run > 1 ? "ALTA" : "MEDIA") + " · SALTO " + (c.jump < -14 ? "ALTO" : "CONTROLADO");
-      ctx.fillStyle = "#8b9bb4"; ctx.font = "10px Courier New"; ctx.fillText(speedText, x + 130, y + 238);
-      if (c.climb) { ctx.fillStyle = "#ff9f1c"; ctx.font = "bold 10px Courier New"; ctx.fillText("SIN SALTO · EMBESTIDA DE ASALTO", x + 130, y + 265); }
-      else if (c.id === "agile") { ctx.fillStyle = "#5cf6ff"; ctx.font = "bold 10px Courier New"; ctx.fillText("2× MOVIMIENTO · RECARGA 50%", x + 130, y + 265); }
-      else { ctx.fillStyle = "#ffe29a"; ctx.font = "bold 10px Courier New"; ctx.fillText("DASH CORTO · EQUILIBRIO Y CONTROL", x + 130, y + 265); }
-      if (selected) { ctx.fillStyle = "#ffe600"; ctx.font = "bold 26px Courier New"; ctx.fillText("▶", x + 12, y + 42); }
+      if (frame) ctx.drawImage(frame, x + 13, y + 8, 70, 88);
+      else drawCharacterIcon(c, x + 13, y + 8, 70, 88);
+      ctx.textAlign = "left"; ctx.fillStyle = c.color; ctx.font = "bold 12px Courier New"; ctx.fillText((selected ? "▶ " : "") + c.title, x + 88, y + 27);
+      ctx.fillStyle = "#fff"; ctx.font = "bold 11px Courier New"; ctx.fillText(c.maxHp + " CORAZONES", x + 88, y + 48);
+      ctx.fillStyle = "#aeb8ca"; ctx.font = "9px Courier New"; ctx.fillText(c.description, x + 88, y + 67);
+      const speedText = c.climb ? "LENTO · ESCALADA" : "VEL. " + (c.run > 1 ? "ALTA" : c.run < 0.9 ? "BAJA" : "MEDIA") + " · SALTO";
+      ctx.fillStyle = "#8b9bb4"; ctx.font = "9px Courier New"; ctx.fillText(speedText, x + 88, y + 84);
+      ctx.fillStyle = c.color; ctx.font = "bold 9px Courier New"; ctx.fillText("[" + (i + 1) + "] " + c.name, x + 12, y + 124);
+      ctx.fillStyle = "#ffe600"; ctx.font = "bold 18px Courier New"; if (selected) ctx.fillText("▶", x + 232, y + 28);
+      ctx.textAlign = "center";
     }
     const active = CHARACTERS[characterCursor];
     const hoverConfirm = mouse.x >= 310 && mouse.x <= 650 && mouse.y >= 454 && mouse.y <= 496;
-    ctx.save();
-    ctx.fillStyle = active.color;
-    if (hoverConfirm) { ctx.shadowColor = active.color; ctx.shadowBlur = 18; }
-    roundRect(310, 454, 340, 42, 6); ctx.fill();
-    ctx.restore();
+    ctx.save(); ctx.fillStyle = active.color; if (hoverConfirm) { ctx.shadowColor = active.color; ctx.shadowBlur = 18; }
+    roundRect(310, 454, 340, 42, 6); ctx.fill(); ctx.restore();
     ctx.fillStyle = "#07060c"; ctx.textAlign = "center"; ctx.font = "bold 13px Courier New";
     ctx.fillText("CONFIRMAR " + active.name + " [ENTER]", VIEW_W / 2, 481);
   }

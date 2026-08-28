@@ -24,7 +24,7 @@ const marker = "  requestAnimationFrame(loop);\n})();";
 if (!source.includes(marker)) throw new Error("No se encontró el punto de instrumentación");
 const instrumented = source.replace(marker, `  requestAnimationFrame(loop);
   globalThis.__YAEL_ROSTER_TEST__ = {
-    roster(index) { highestUnlockedLevel=CAMPAIGN.length; selectedCharacter=index; startGame(1); return { id:player.character, hp:player.maxHp, run:player.move.run, acc:player.move.acc, airAcc:player.move.airAcc, jump:player.move.jump, gravity:player.move.gravity, maxFall:player.move.maxFall, climb:player.move.climb, airJumps:player.move.airJumps || 0, reloadMultiplier:player.move.reloadMultiplier || 1, damageMultiplier:player.move.damageMultiplier || 1, ammoMultiplier:player.move.ammoMultiplier || 1 }; },
+    roster(index) { highestUnlockedLevel=CAMPAIGN.length; selectedCharacter=index; startGame(1); return { id:player.character, hp:player.maxHp, run:player.move.run, acc:player.move.acc, airAcc:player.move.airAcc, jump:player.move.jump, gravity:player.move.gravity, maxFall:player.move.maxFall, climb:player.move.climb, airJumps:player.move.airJumps || 0, reloadMultiplier:player.move.reloadMultiplier || 1, damageMultiplier:player.move.damageMultiplier || 1, ammoMultiplier:player.move.ammoMultiplier || 1, specialCooldownMultiplier:player.move.specialCooldownMultiplier || 1, regenFrames:player.move.regenFrames || 0 }; },
     doubleJump() {
       highestUnlockedLevel=CAMPAIGN.length; selectedCharacter=1; startGame(1);
       player.onGround=false; player.coyote=0; player.airJumpsLeft=1; player.jumpHeld=false; player.jumpBuf=0; keys.w=true;
@@ -125,6 +125,10 @@ const check = (condition, message, detail) => condition ? console.log("OK  ", me
 const classic = api.roster(0);
 const agile = api.roster(1);
 const heavy = api.roster(2);
+const medic = api.roster(3);
+const technician = api.roster(4);
+const phantom = api.roster(5);
+check([classic, agile, heavy, medic, technician, phantom].every((character) => character.id), "hay seis personajes jugables seleccionables", JSON.stringify({ classic, agile, heavy, medic, technician, phantom }));
 check(classic.hp === 7 && classic.jump < -10 && classic.jump > -14, "Clásico: 7 corazones y salto moderado", JSON.stringify(classic));
 check(agile.hp === 2 && agile.run >= classic.run * 2 && agile.acc >= classic.acc * 1.8 && agile.airAcc >= classic.airAcc * 1.8 && Math.abs(agile.jump) > Math.abs(classic.jump) && agile.gravity >= classic.gravity * 1.8 && agile.maxFall >= classic.maxFall * 1.8, "Ágil: movilidad general duplicada para esquivar", JSON.stringify(agile));
 check(agile.reloadMultiplier === 1 / 2.6, "Ágil: recarga 2.6× más rápida", JSON.stringify(agile));
@@ -134,6 +138,9 @@ check(agileJump.first.vy < -10 && agileJump.first.left === 0 && agileJump.second
 const spaceJump = api.spaceJump();
 check(spaceJump.vy < -10 && !spaceJump.onGround, "la barra espaciadora activa el salto", JSON.stringify(spaceJump));
 check(heavy.hp === 16 && heavy.run < classic.run && heavy.jump === 0 && heavy.climb && heavy.ammoMultiplier === 2, "Pesado: 16 corazones, munición doble y sin salto", JSON.stringify(heavy));
+check(medic.regenFrames === 180 && medic.damageMultiplier < 1 && medic.hp < classic.hp, "Médica: regenera vida a cambio de daño reducido", JSON.stringify(medic));
+check(technician.specialCooldownMultiplier < 0.6 && technician.ammoMultiplier < 0.75, "Técnica: recarga especiales rápidamente a cambio de munición", JSON.stringify(technician));
+check(phantom.airJumps === 2 && phantom.run > classic.run && phantom.reloadMultiplier > 1, "Fantasma: movilidad aérea extrema a cambio de recargas lentas", JSON.stringify(phantom));
 const classicReload = api.reloadProbe(0);
 const agileReload = api.reloadProbe(1);
 const heavyReload = api.reloadProbe(2);
