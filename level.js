@@ -403,7 +403,169 @@
     };
   }
 
+  const ZONES_L3 = [
+    { id: "l3_base", name: "BASE DE LA TORRE", y0: 166, y1: 180 },
+    { id: "l3_p1", name: "PISO 1: MAQUINARIA", y0: 152, y1: 166 },
+    { id: "l3_p2", name: "PISO 2: GENERADORES", y0: 138, y1: 152 },
+    { id: "l3_p3", name: "PISO 3: CONDUCTOS", y0: 124, y1: 138 },
+    { id: "l3_p4", name: "PISO 4: ASCENSOR CENTRAL", y0: 110, y1: 124 },
+    { id: "l3_p5", name: "PISO 5: BASTION INTERNO", y0: 96, y1: 110 },
+    { id: "l3_p6", name: "PISO 6: VENTILACION", y0: 82, y1: 96 },
+    { id: "l3_p7", name: "PISO 7: PASARELA ALTA", y0: 68, y1: 82 },
+    { id: "l3_p8", name: "PISO 8: ANTECAMARA", y0: 48, y1: 68 },
+    { id: "l3_cima", name: "CIMA: AZOTEA DEL HELIPUERTO", y0: 0, y1: 48 },
+  ];
+
+  const SPAWNS_L3 = {
+    boss: { tileX: 18, tileY: 18, type: "alien_ship", label: "NAVE ALIENIGENA" },
+    towerEnemies: [
+      { tileX: 12, tileY: 175, type: "shark" },
+      { tileX: 20, tileY: 165, type: "crab" },
+      { tileX: 22, tileY: 153, type: "octopus" },
+      { tileX: 15, tileY: 141, type: "eel" },
+      { tileX: 8, tileY: 129, type: "shark" },
+      { tileX: 28, tileY: 129, type: "octopus" },
+      { tileX: 18, tileY: 112, type: "radstar" },
+      { tileX: 20, tileY: 103, type: "crab" },
+      { tileX: 12, tileY: 84, type: "radstar" },
+      { tileX: 24, tileY: 70, type: "radstar" },
+      { tileX: 16, tileY: 61, type: "shark" },
+    ],
+  };
+
+  function buildLevel3() {
+    const W3 = 36;
+    const H3 = 180;
+    const tiles = Array.from({ length: H3 }, () => Array(W3).fill(T.EMPTY));
+    const tileMeta = Array.from({ length: H3 }, () => Array(W3).fill(null));
+
+    // Base de tierra en el fondo de la torre
+    for (let x = 0; x < W3; x++) {
+      for (let y = 176; y < H3; y++) {
+        tiles[y][x] = y === 176 ? T.GRASS : T.DIRT;
+      }
+    }
+
+    // Muros exteriores laterales de la torre (de y=30 a y=176)
+    for (let y = 30; y < 176; y++) {
+      tiles[y][0] = T.BRICK;
+      tiles[y][1] = T.BRICK;
+      tiles[y][W3 - 2] = T.BRICK;
+      tiles[y][W3 - 1] = T.BRICK;
+    }
+
+    // Coberturas y Pisos en zigzag
+    function buildFloor(fy, openLeft) {
+      for (let x = 2; x < W3 - 2; x++) {
+        if (openLeft && x < 10) continue;
+        if (!openLeft && x > W3 - 11) continue;
+        tiles[fy][x] = T.BRICK;
+        if (x % 7 === 0) tiles[fy - 1][x] = T.CRATE;
+      }
+      // Plataformas intermedias de salto amplio y aterrizaje en el piso
+      const px = openLeft ? 2 : W3 - 10;
+      for (let i = 0; i < 8; i++) {
+        tiles[fy][px + i] = T.PLATFORM;
+        tiles[fy + 8][px + i] = T.PLATFORM;
+        tiles[fy + 4][px + i] = T.PLATFORM;
+        tiles[fy - 4][px + i] = T.PLATFORM;
+      }
+      // Barricada de sacos de arena en el piso
+      const sx = openLeft ? 15 : 18;
+      tiles[fy - 1][sx] = T.PIPE_TOP;
+      tiles[fy - 1][sx + 1] = T.PIPE_TOP;
+    }
+
+    // Construcción de los 9 pisos interiores
+    buildFloor(166, false); // Abre derecha
+    buildFloor(154, true);  // Abre izquierda
+    buildFloor(142, false); // Abre derecha
+    buildFloor(130, true);  // Abre izquierda
+
+    // Piso 5 (Ascensor central): abertura al centro (y=118)
+    for (let x = 2; x < W3 - 2; x++) {
+      if (x >= 11 && x <= 24) continue;
+      tiles[118][x] = T.BRICK;
+    }
+    for (let i = 0; i < 14; i++) {
+      tiles[118][11 + i] = T.PLATFORM;
+      tiles[126][11 + i] = T.PLATFORM;
+      tiles[122][11 + i] = T.PLATFORM;
+      tiles[114][11 + i] = T.PLATFORM;
+      tiles[110][11 + i] = T.PLATFORM;
+    }
+
+    buildFloor(104, false); // Abre derecha
+    buildFloor(90, true);   // Abre izquierda
+    buildFloor(76, false);  // Abre derecha
+    buildFloor(62, true);   // Abre izquierda
+
+    // Antecámara de la cúpula (y=48)
+    for (let x = 2; x < W3 - 2; x++) {
+      if (x > W3 - 10) continue;
+      tiles[48][x] = T.BRICK;
+    }
+    for (let i = 0; i < 8; i++) {
+      tiles[58][W3 - 10 + i] = T.PLATFORM;
+      tiles[54][W3 - 10 + i] = T.PLATFORM;
+      tiles[50][W3 - 10 + i] = T.PLATFORM;
+      tiles[48][W3 - 10 + i] = T.PLATFORM;
+      tiles[44][14 + i] = T.PLATFORM;
+      tiles[40][14 + i] = T.PLATFORM;
+      tiles[35][14 + i] = T.PLATFORM;
+      tiles[30][14 + i] = T.PLATFORM;
+    }
+    tiles[47][8] = T.CRATE;
+    tiles[47][9] = T.CRATE;
+    tiles[47][20] = T.PIPE_TOP;
+
+    // Azotea del Helipuerto / Arena del Boss (y=30)
+    // Helipuerto central sólido (x=5..30) con abismo mortal a ambos lados
+    for (let x = 5; x <= 30; x++) {
+      if (x < 14 || x > 21) {
+        tiles[30][x] = T.BRICK;
+        tiles[31][x] = T.BRICK;
+      }
+    }
+    // Plataformas elevadas tácticas para esquivar el láser y el rayo tractor
+    for (let i = 0; i < 6; i++) {
+      tiles[26][6 + i] = T.PLATFORM;
+      tiles[26][23 + i] = T.PLATFORM;
+      tiles[22][15 + i] = T.PLATFORM;
+    }
+
+    // Torreta de control y Puerta de escape en la azotea (y: 12..20, x: 16..20)
+    for (let y = 14; y <= 21; y++) {
+      tiles[y][15] = T.CASTLE;
+      tiles[y][20] = T.CASTLE;
+    }
+    for (let x = 15; x <= 20; x++) {
+      tiles[14][x] = T.CASTLE;
+    }
+    tiles[20][17] = T.DOOR;
+    tiles[20][18] = T.DOOR;
+    tiles[19][17] = T.DOOR;
+    tiles[19][18] = T.DOOR;
+
+    return {
+      tiles,
+      tileMeta,
+      lavaSpawns: [],
+      worldW: W3,
+      worldH: H3,
+      groundY: 176,
+      doorX: 17 * TILE,
+      doorY: 19 * TILE,
+      zones: ZONES_L3,
+      spawns: SPAWNS_L3,
+      levelNum: 3,
+      isVertical: true,
+      name: "NIVEL 3: TORRE DEL CATACLISMO",
+    };
+  }
+
   function buildLevel(num) {
+    if (num === 3) return buildLevel3();
     if (num === 2) return buildLevel2();
     return buildLevel1();
   }

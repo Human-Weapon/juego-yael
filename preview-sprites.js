@@ -330,14 +330,89 @@ kk00k.......kccccccccc.......k00kk
 `,
 };
 
+const RAW_ALIEN_SHIP = {
+  idle: `
+................kkkkkkkk................
+..............kk44555544kk..............
+.............k4555wwww5554k.............
+............k45wwwwwwwwww54k............
+.kkk.......k45wwwwwwwwwwww54k.......kkk.
+k666kk....kk4455555555555544kk....kk666k
+k88899kkkkffccccccccccccccccffkkkk99888k
+k8899ww9ffffccccccccccccccccffff9ww9988k
+.k8999ffffffffffffffffffffffffffff9998k.
+..kkffffccccffffccccccccffffccccffffkk..
+...kffffccccffffccccccccffffccccffffk...
+....kkffffffffffffffffffffffffffffkk....
+......kkkfff0000000000000000fffkkk......
+........kk00ffffffffffffffff00kk........
+..........kkk11111111111111kkk..........
+.............kkkkkkkkkkkkkk.............
+`,
+  laser: `
+................kkkkkkkk................
+..............kk44555544kk..............
+.............k4555wwww5554k.............
+............k45wwwwwwwwww54k............
+.kkk.......k45wwwwwwwwwwww54k.......kkk.
+k666kk....kk4455555555555544kk....kk666k
+k88899kkkkffccccccccccccccccffkkkk99888k
+k8899ww9ffffccccccccccccccccffff9ww9988k
+.k8999ffffffffffffffffffffffffffff9998k.
+..kkffffccccffff88888888ffffccccffffkk..
+...kffffccccffff99wwww99ffffccccffffk...
+....kkffffffffff99wwww99ffffffffffkk....
+......kkkfff000099wwww990000fffkkk......
+........kk00ffff99wwww99ffff00kk........
+..........kkk11188999988111kkk..........
+.............kkk88999988kkk.............
+`,
+  tractor: `
+................kkkkkkkk................
+..............kk44555544kk..............
+.............k4555wwww5554k.............
+............k45wwwwwwwwww54k............
+.kkk.......k45wwwwwwwwwwww54k.......kkk.
+k666kk....kk4455555555555544kk....kk666k
+k88899kkkkffccccccccccccccccffkkkk99888k
+k8899ww9ffffccccccccccccccccffff9ww9988k
+.k8999ffffffffffffffffffffffffffff9998k.
+..kkffffccccffffccccccccffffccccffffkk..
+...kffffccccffff55wwww55ffffccccffffk...
+....kkffffffffff55wwww55ffffffffffkk....
+......kkkfff000055wwww550000fffkkk......
+........kk00ffff55wwww55ffff00kk........
+..........kkk11144555544111kkk..........
+.............kkk44555544kkk.............
+`,
+  stun: `
+................kkkkkkkk................
+..............kk44555544kk..............
+.............k4555wwww5554k.............
+............k45wwwwwwwwww54k............
+.kkk.......k45wwwwwwwwwwww54k.......kkk.
+k999kk....kk4455555555555544kk....kk999k
+kwww99kkkkffccccccccccccccccffkkkk99wwwk
+kwwwwww9ffffccccccccccccccccffff9wwwwwwk
+.kwww9ffffffffffffffffffffffffffff9wwwk.
+..kkffffccccffffccccccccffffccccffffkk..
+...kffffccccffffccccccccffffccccffffk...
+....kkffffffffffffffffffffffffffffkk....
+......kkkfff9999wwwwwwww9999fffkkk......
+........kkww9999wwwwwwww9999wwkk........
+..........kkk99999999999999kkk..........
+.............kkkkkkkkkkkkkk.............
+`,
+};
+
 const W = 1040;
-const H = 600;
+const H = 840;
 const img = makeBuf(W, H, 11, 16, 32);
 
 // Header
 fill(img, 0, 0, W, 48, 20, 14, 34);
 fill(img, 0, 46, W, 2, 92, 246, 255);
-text(img, 24, 16, "NUEVOS SPRITES: NIVEL 2 - PROTOCOLO BELMONT", 92, 246, 255, 3);
+text(img, 24, 16, "GALERIA DE SPRITES: NIVELES 1, 2 Y 3", 92, 246, 255, 3);
 
 // Section 1: Estrella Radiactiva Voladora
 fill(img, 24, 60, W - 48, 175, 18, 26, 42);
@@ -355,30 +430,48 @@ text(img, 300, 208, "PULSE", 92, 246, 255, 2);
 drawAscii(img, RAW_RADSTAR.shoot, 520, 115, scaleStar);
 text(img, 515, 208, "DISPARO", 57, 255, 20, 2);
 
-// Proyectil verde demo
 fill(img, 780, 135, 26, 26, 57, 255, 20);
 fill(img, 785, 140, 16, 16, 204, 255, 51);
 fill(img, 790, 145, 6, 6, 255, 255, 255);
 text(img, 740, 175, "FUEGO VERDE", 204, 255, 51, 1);
 
 // Section 2: Boss Titán Gigante Naranja
-fill(img, 24, 250, W - 48, 330, 24, 16, 30);
+fill(img, 24, 250, W - 48, 280, 24, 16, 30);
 fill(img, 24, 250, W - 48, 2, 255, 123, 0);
-text(img, 40, 262, "2. BOSS: TITAN RADIACTIVO COLOSAL (950 HP - PESADO)", 255, 123, 0, 2);
+text(img, 40, 262, "2. BOSS NIVEL 2: TITAN RADIACTIVO COLOSAL (950 HP)", 255, 123, 0, 2);
 text(img, 40, 282, "Ataque telegrafiado con aviso. Sobrecalentamiento expone su nucleo (2X dano)", 240, 180, 140, 1);
 
-const scaleBoss = 3;
-drawAscii(img, RAW_RADBOSS.idle, 40, 310, scaleBoss);
-text(img, 50, 545, "1. REPOSO", 255, 170, 0, 1);
+const scaleBoss = 2.5;
+drawAscii(img, RAW_RADBOSS.idle, 40, 305, scaleBoss);
+text(img, 50, 495, "1. REPOSO", 255, 170, 0, 1);
 
-drawAscii(img, RAW_RADBOSS.charge, 280, 310, scaleBoss);
-text(img, 275, 545, "2. AVISO / CARGA", 255, 230, 0, 1);
+drawAscii(img, RAW_RADBOSS.charge, 280, 305, scaleBoss);
+text(img, 275, 495, "2. AVISO / CARGA", 255, 230, 0, 1);
 
-drawAscii(img, RAW_RADBOSS.attack, 520, 310, scaleBoss);
-text(img, 515, 545, "3. ATAQUE RAPIDO", 255, 60, 0, 1);
+drawAscii(img, RAW_RADBOSS.attack, 520, 305, scaleBoss);
+text(img, 515, 495, "3. ATAQUE RAPIDO", 255, 60, 0, 1);
 
-drawAscii(img, RAW_RADBOSS.overheat, 760, 310, scaleBoss);
-text(img, 750, 545, "4. NUCLEO EXPUESTO (2X)", 92, 246, 255, 1);
+drawAscii(img, RAW_RADBOSS.overheat, 760, 305, scaleBoss);
+text(img, 750, 495, "4. NUCLEO EXPUESTO (2X)", 92, 246, 255, 1);
+
+// Section 3: Boss Nave Alienígena Nivel 3
+fill(img, 24, 545, W - 48, 275, 14, 24, 38);
+fill(img, 24, 545, W - 48, 2, 92, 246, 255);
+text(img, 40, 558, "3. BOSS NIVEL 3: NAVE NODRIZA ALIENIGENA (1200 HP)", 92, 246, 255, 2);
+text(img, 40, 578, "Laser vertical continuo, rayo tractor de expulsion y orbe paralizante (2 segundos)", 180, 230, 255, 1);
+
+const scaleShip = 2.8;
+drawAscii(img, RAW_ALIEN_SHIP.idle, 40, 600, scaleShip);
+text(img, 50, 785, "1. VUELO / ESCUDOS", 92, 246, 255, 1);
+
+drawAscii(img, RAW_ALIEN_SHIP.laser, 280, 600, scaleShip);
+text(img, 275, 785, "2. LASER VERTICAL", 255, 60, 0, 1);
+
+drawAscii(img, RAW_ALIEN_SHIP.tractor, 520, 600, scaleShip);
+text(img, 515, 785, "3. RAYO TRACTOR", 92, 246, 255, 1);
+
+drawAscii(img, RAW_ALIEN_SHIP.stun, 760, 600, scaleShip);
+text(img, 750, 785, "4. ORBE PARALIZANTE", 255, 230, 0, 1);
 
 writePng(path.join(__dirname, "preview-sprites.png"), W, H, img.pix);
 console.log("preview-sprites.png generated successfully!");

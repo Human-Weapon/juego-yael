@@ -117,7 +117,11 @@
   let audio = null;
   let muted = false;
   let doorX = 0;
+  let doorY = 0;
   let groundY = 13;
+  let risingLavaY = 999999;
+  let risingLavaSpeed = 0;
+  let isVerticalLevel = false;
 
   function clamp(v, a, b) {
     return v < a ? a : v > b ? b : v;
@@ -250,6 +254,10 @@
       beep(320, 0.35, "sine", 0.06, 120);
       noiseBurst(0.12, 0.04);
     },
+    laserBeam: () => beep(120, 0.4, "sawtooth", 0.08, 40),
+    tractorBeam: () => beep(440, 0.25, "sine", 0.06, 660),
+    stunOrb: () => beep(880, 0.12, "triangle", 0.07, 220),
+    stunShock: () => noiseBurst(0.12, 0.05),
   };
 
   function fitCanvas() {
@@ -272,11 +280,13 @@
     if (k === "enter" || k === " ") {
       if (state === "menu") startGame(currentLevel || 1);
       else if (state === "level_clear") startGame(2);
+      else if (state === "level_clear_2") startGame(3);
       else if (state === "dead" && lives <= 0) startGame(currentLevel || 1);
       else if (state === "win") startGame(1);
     }
-    if (k === "1" && (state === "menu" || state === "dead" || state === "win" || state === "level_clear")) startGame(1);
-    if (k === "2" && (state === "menu" || state === "dead" || state === "win" || state === "level_clear")) startGame(2);
+    if (k === "1" && (state === "menu" || state === "dead" || state === "win" || state.startsWith("level_clear"))) startGame(1);
+    if (k === "2" && (state === "menu" || state === "dead" || state === "win" || state.startsWith("level_clear"))) startGame(2);
+    if (k === "3" && (state === "menu" || state === "dead" || state === "win" || state.startsWith("level_clear"))) startGame(3);
     if (k === "p" && state === "play") {
       state = "pause";
       pauseBGM();
@@ -289,7 +299,7 @@
       if (bgm) bgm.muted = muted;
     }
     if (k === "e" && state === "play") cycleWeapon();
-    if (k === "r" && (state === "dead" || state === "win" || state === "level_clear")) startGame(currentLevel);
+    if (k === "r" && (state === "dead" || state === "win" || state.startsWith("level_clear"))) startGame(currentLevel);
   });
   window.addEventListener("keyup", (e) => {
     keys[e.key.toLowerCase()] = false;
@@ -325,17 +335,14 @@
   }
   function setTile(tx, ty, v) {
     if (ty < 0 || ty >= worldH || tx < 0 || tx >= worldW) return;
-    tiles[ty][tx] = v;
-  }
-
   function makePlayer() {
     return {
-      x: TILE * 3,
+      x: 3 * TILE,
       y: groundY * TILE - PHYS.PLAYER_H,
-      w: PHYS.PLAYER_W,
-      h: PHYS.PLAYER_H,
       vx: 0,
       vy: 0,
+      w: PHYS.PLAYER_W,
+      h: PHYS.PLAYER_H,
       onGround: false,
       crouch: false,
       facing: 1,
@@ -352,6 +359,9 @@
       anim: 0,
       dead: false,
       t: 0,
+      stunTimer: 0,
+      trapped: false,
+      grabEscape: 0,
     };
   }
 
@@ -370,8 +380,21 @@
     worldH = lvl.worldH;
     groundY = lvl.groundY;
     doorX = lvl.doorX;
+    doorY = lvl.doorY || (groundY - 1) * TILE;
+    isVerticalLevel = !!lvl.isVertical;
     levelName = lvl.name || ("NIVEL " + currentLevel);
     player = makePlayer();
+
+    if (currentLevel === 3) {
+      player.x = 18 * TILE;
+      player.y = 175 * TILE - PHYS.PLAYER_H;
+      risingLavaY = 179 * TILE;
+      risingLavaSpeed = 0.42;
+    } else {
+      risingLavaY = 999999;
+      risingLavaSpeed = 0;
+    }
+
     enemies = [];
     bullets = [];
     particles = [];
@@ -411,6 +434,15 @@
       }
       if (spawns && spawns.boss) {
         spawnEnemy("radboss", spawns.boss.tileX * TILE, groundY * TILE);
+      }
+    } else if (currentLevel === 3) {
+      if (spawns && spawns.towerEnemies) {
+        for (const te of spawns.towerEnemies) {
+          spawnEnemy(te.type, te.tileX * TILE, te.tileY * TILE);
+        }
+      }
+      if (spawns && spawns.boss) {
+        spawnEnemy("alien_ship", spawns.boss.tileX * TILE, spawns.boss.tileY * TILE);
       }
     }
   }
@@ -470,7 +502,7 @@
       if (t.id === T.LAVA) e.inLava = true;
       const ry = t.ty * TILE;
       if (oneWay(t.id)) {
-        if (e.vy >= 0 && e.y + e.h <= ry + 10) {
+        if (e.vy >= 0 && e.y + e.h <= ry + 12) {
           e.y = ry - e.h;
           e.vy = 0;
           e.onGround = true;
@@ -485,7 +517,7 @@
       } else if (e.vy < 0) {
         e.y = ry + TILE;
         e.vy = 0;
-        if (e === player) bumpBlock(t.tx, t.ty);
+        bumpBlock();
       }
     }
     e.y += e.vy;
@@ -713,7 +745,27 @@
       return;
     }
 
-    const wantCrouch = !!(keys.s || keys.arrowdown) && p.onGround;
+    if (p.stunTimer > 0) {
+      p.stunTimer--;
+      if (Math.random() < 0.4) {
+        particles.push({
+          x: p.x + rand(0, p.w),
+          y: p.y + rand(0, p.h),
+          vx: rand(-1, 1),
+          vy: rand(-1, 1),
+          life: 8,
+          max: 8,
+          color: Math.random() < 0.5 ? "#5cf6ff" : "#ffe600",
+          s: 3,
+          g: 0,
+        });
+      }
+    }
+
+    const isStunned = p.stunTimer > 0;
+    const isTrapped = p.trapped;
+
+    const wantCrouch = !isStunned && !isTrapped && !!(keys.s || keys.arrowdown) && p.onGround;
     if (wantCrouch && !p.crouch) {
       p.y += PHYS.PLAYER_H - PHYS.CROUCH_H;
       p.h = PHYS.CROUCH_H;
@@ -732,17 +784,19 @@
     const max = p.crouch ? PHYS.CROUCH_RUN : PHYS.RUN;
     const acc = p.onGround ? PHYS.ACC : PHYS.AIR_ACC;
     let ax = 0;
-    if (keys.a || keys.arrowleft) ax -= 1;
-    if (keys.d || keys.arrowright) ax += 1;
+    if (!isStunned && !isTrapped) {
+      if (keys.a || keys.arrowleft) ax -= 1;
+      if (keys.d || keys.arrowright) ax += 1;
+    }
     if (ax !== 0) p.vx += ax * acc;
     else p.vx *= p.onGround ? PHYS.FRICTION : PHYS.AIR_FRICTION;
     p.vx = clamp(p.vx, -max, max);
 
-    if (holdingJump()) p.jumpBuf = PHYS.JUMP_BUF;
+    if (!isStunned && !isTrapped && holdingJump()) p.jumpBuf = PHYS.JUMP_BUF;
     if (p.onGround) p.coyote = PHYS.COYOTE;
 
     let jumped = false;
-    if (p.jumpBuf > 0 && p.coyote > 0 && !p.crouch) {
+    if (!isStunned && !isTrapped && p.jumpBuf > 0 && p.coyote > 0 && !p.crouch) {
       p.vy = PHYS.JUMP;
       p.onGround = false;
       p.jumpBuf = 0;
@@ -751,7 +805,7 @@
       sfx.jump();
     }
 
-    if (!jumped) {
+    if (!jumped && !isTrapped) {
       if (!holdingJump() && p.vy < -3.2) p.vy *= 0.52;
       const g = p.vy < 0 && holdingJump() ? PHYS.HOLD_GRAV : PHYS.GRAVITY;
       p.vy += g;
@@ -760,7 +814,16 @@
 
     p.inLava = false;
     p.fell = false;
-    moveActor(p);
+    if (!isTrapped) moveActor(p);
+
+    if (currentLevel === 3) {
+      if (risingLavaY > 26 * TILE) {
+        risingLavaY -= risingLavaSpeed;
+      }
+      if (p.y + p.h >= risingLavaY) {
+        p.inLava = true;
+      }
+    }
 
     if (p.inLava) {
       hurtPlayer(1);
@@ -783,28 +846,34 @@
     if (p.coyote > 0) p.coyote--;
     p.anim += Math.abs(p.vx) * 0.16 + 0.06;
 
-    if (mouse.right && !p.charging) {
-      p.charging = true;
-      p.charge = 0;
-    }
-    if (p.charging && mouse.right) p.charge = Math.min(1, p.charge + 0.02);
-    if (p.charging && !mouse.right) {
-      if (p.charge >= 0.85) fireWeapon(true);
-      else if (p.charge >= 0.3) fireWeapon(false);
-      p.charging = false;
-      p.charge = 0;
-    }
+    if (!isStunned) {
+      if (mouse.right && !p.charging) {
+        p.charging = true;
+        p.charge = 0;
+      }
+      if (p.charging && mouse.right) p.charge = Math.min(1, p.charge + 0.02);
+      if (p.charging && !mouse.right) {
+        if (p.charge >= 0.85) fireWeapon(true);
+        else if (p.charge >= 0.3) fireWeapon(false);
+        p.charging = false;
+        p.charge = 0;
+      }
 
-    const w = WEAPONS[p.weapon];
-    if (mouse.left && !p.charging) {
-      if (w.automatic) fireWeapon(false);
-      else if (mouse.leftClick) fireWeapon(false);
+      const w = WEAPONS[p.weapon];
+      if (mouse.left && !p.charging) {
+        if (w.automatic) fireWeapon(false);
+        else if (mouse.leftClick) fireWeapon(false);
+      }
     }
 
     for (const t of tilesTouching(bodyBox(p))) {
       if (t.id === T.DOOR && !p.dead) {
         if (currentLevel === 1) {
           state = "level_clear";
+          winT = 0;
+          sfx.win();
+        } else if (currentLevel === 2) {
+          state = "level_clear_2";
           winT = 0;
           sfx.win();
         } else {
@@ -836,7 +905,7 @@
         burst(en.x + en.w / 2, en.y + en.h, "#ff6b00", 1);
         if (en.t > 42) {
           en.state = "hunt";
-          en.ignoreLava = en.type === "eel" || en.type === "seaking" || en.type === "radboss";
+          en.ignoreLava = en.type === "eel" || en.type === "seaking" || en.type === "radboss" || en.type === "alien_ship";
         }
         continue;
       }
@@ -848,8 +917,171 @@
       const dx = pcx - ecx;
       en.facing = dx >= 0 ? 1 : -1;
 
-      if (en.type === "radstar") {
-        // Estrella radiactiva voladora: vuelo senoidal y disparos de fuego verde
+      if (en.type === "alien_ship") {
+        // Boss Nave Alienígena de la Cima de la Torre
+        en.phaseTimer++;
+
+        if (en.state === "hunt" || en.state === "hover") {
+          const targetY = clamp(pcy - 120 + Math.sin(en.t * 0.06) * 30, 8 * TILE, 22 * TILE);
+          const targetX = clamp(pcx - en.w / 2 + Math.cos(en.t * 0.04) * 80, 4 * TILE, (worldW - 6) * TILE);
+          en.x = lerp(en.x, targetX, 0.05);
+          en.y = lerp(en.y, targetY, 0.05);
+
+          if (en.cool <= 0) {
+            const a = angTo(ecx, en.y + en.h, pcx, pcy);
+            for (let i = -1; i <= 1; i += 2) {
+              bullets.push({
+                x: ecx + i * 36,
+                y: en.y + en.h - 6,
+                vx: Math.cos(a + i * 0.1) * 5.8,
+                vy: Math.sin(a + i * 0.1) * 5.8,
+                r: 6,
+                dmg: 1,
+                life: 90,
+                owner: "enemy",
+                plasma: true,
+                color: "#5cf6ff",
+                hit: [],
+              });
+            }
+            sfx.greenFire();
+            en.cool = 55;
+          }
+
+          if (en.phaseTimer > 120) {
+            en.phaseTimer = 0;
+            const r = Math.random();
+            if (r < 0.38) {
+              en.state = "laser";
+              sfx.alarm();
+              floatText(ecx, en.y - 20, "¡ALERTA: RAYO LASER VERTICAL!", "#ef233c");
+            } else if (r < 0.72) {
+              en.state = "tractor";
+              sfx.tractorBeam();
+              floatText(ecx, en.y - 20, "¡CUIDADO: RAYO TRACTOR!", "#5cf6ff");
+            } else {
+              en.state = "stun_orb";
+              sfx.stunOrb();
+              floatText(ecx, en.y - 20, "¡ORBE PARALIZANTE!", "#ffe600");
+            }
+          }
+        } else if (en.state === "laser") {
+          if (en.phaseTimer < 45) {
+            en.x = lerp(en.x, pcx - en.w / 2, 0.12);
+            if (en.phaseTimer % 10 === 0) sfx.alarm();
+            particles.push({
+              x: ecx + rand(-3, 3),
+              y: en.y + en.h + rand(0, 380),
+              vx: 0,
+              vy: 3,
+              life: 6,
+              max: 6,
+              color: "#ef233c",
+              s: 2,
+              g: 0,
+            });
+          } else if (en.phaseTimer < 95) {
+            if (en.phaseTimer === 45) sfx.laserBeam();
+            shake = Math.max(shake, 6);
+            for (let i = 0; i < 4; i++) {
+              particles.push({
+                x: ecx + rand(-16, 16),
+                y: en.y + en.h + rand(0, 420),
+                vx: rand(-0.5, 0.5),
+                vy: rand(8, 16),
+                life: 10,
+                max: 10,
+                color: Math.random() < 0.5 ? "#fff" : "#ef233c",
+                s: rand(3, 7),
+                g: 0,
+              });
+            }
+            if (Math.abs(pcx - ecx) < 26 && player.y > en.y + en.h && player.y < en.y + 450) {
+              hurtPlayer(1);
+            }
+          } else {
+            en.state = "hover";
+            en.phaseTimer = 0;
+            en.cool = 40;
+          }
+        } else if (en.state === "tractor") {
+          if (en.phaseTimer < 35) {
+            en.x = lerp(en.x, pcx - en.w / 2, 0.08);
+            en.y = lerp(en.y, pcy - 120, 0.08);
+            for (let i = 0; i < 3; i++) {
+              particles.push({
+                x: ecx + rand(-30, 30),
+                y: en.y + en.h + rand(0, 150),
+                vx: rand(-1, 1),
+                vy: rand(-3, -1),
+                life: 12,
+                max: 12,
+                color: "#5cf6ff",
+                s: 3,
+                g: -0.05,
+              });
+            }
+          } else if (en.phaseTimer < 140) {
+            const inTractorBeam = Math.abs(pcx - ecx) < 42 && player.y > en.y && player.y < en.y + 190;
+            if (inTractorBeam && !player.trapped) {
+              player.trapped = true;
+              player.grabEscape = 0;
+              sfx.tractorBeam();
+            }
+            if (player.trapped) {
+              player.x = lerp(player.x, ecx - player.w / 2, 0.2);
+              player.y = lerp(player.y, en.y + en.h + 12, 0.2);
+              player.vy = 0;
+              player.vx = 0;
+
+              const targetLedge = pcx < (worldW * TILE) / 2 ? 2 * TILE : (worldW - 5) * TILE;
+              en.x = lerp(en.x, targetLedge, 0.04);
+
+              if (keys.w || keys.arrowup || keys[" "] || mouse.left || mouse.right) {
+                player.grabEscape++;
+                burst(player.x + player.w / 2, player.y + player.h / 2, "#5cf6ff", 2);
+              }
+              if (player.grabEscape > 25 || en.x < 3 * TILE || en.x > (worldW - 6) * TILE) {
+                player.trapped = false;
+                player.vx = (en.x < (worldW * TILE) / 2 ? -6 : 6);
+                player.vy = -4;
+                floatText(player.x, player.y - 20, "¡LIBERADO!", "#5cf6ff");
+                en.state = "hover";
+                en.phaseTimer = 0;
+                en.cool = 50;
+              }
+            } else {
+              en.x = lerp(en.x, pcx - en.w / 2, 0.04);
+            }
+          } else {
+            player.trapped = false;
+            en.state = "hover";
+            en.phaseTimer = 0;
+            en.cool = 40;
+          }
+        } else if (en.state === "stun_orb") {
+          const a = angTo(ecx, en.y + en.h, pcx, pcy);
+          for (let i = -0.5; i <= 0.5; i += 1) {
+            bullets.push({
+              x: ecx,
+              y: en.y + en.h,
+              vx: Math.cos(a + i * 0.22) * 5.2,
+              vy: Math.sin(a + i * 0.22) * 5.2,
+              r: 8,
+              dmg: 1,
+              life: 110,
+              owner: "enemy",
+              stunOrb: true,
+              color: "#ffe600",
+              hit: [],
+            });
+          }
+          burst(ecx, en.y + en.h, "#ffe600", 12);
+          en.state = "hover";
+          en.phaseTimer = 0;
+          en.cool = 70;
+        }
+      } else if (en.type === "radstar") {
         const distP = dist(pcx, pcy, ecx, ecy);
         const targetY = clamp(pcy - 40 + Math.sin(en.t * 0.07) * 45, TILE * 2, (groundY - 1) * TILE);
         en.y = lerp(en.y, targetY, 0.04);
@@ -879,7 +1111,6 @@
           en.cool = irand(65, 105);
         }
       } else if (en.type === "radboss") {
-        // Boss estrella titán naranja pesado en tierra
         en.vy += PHYS.GRAVITY * 0.8;
         if (en.vy > PHYS.MAX_FALL) en.vy = PHYS.MAX_FALL;
 
@@ -887,7 +1118,6 @@
           en.vx = en.facing * def.speed;
           en.phaseTimer++;
 
-          // Disparo sencillo de fuego naranja
           if (en.cool <= 0 && Math.abs(dx) < 560) {
             const a = angTo(ecx, en.y + 35, pcx, player.y + 12);
             bullets.push({
@@ -907,7 +1137,6 @@
             burst(ecx, en.y + 35, "#ff7b00", 6);
           }
 
-          // Iniciar aviso de ataque telegrafiado
           if (en.phaseTimer > 180 && Math.abs(dx) < 600) {
             en.state = "charge";
             en.phaseTimer = 0;
@@ -916,7 +1145,6 @@
             floatText(ecx, en.y - 20, "¡ALERTA: SOBRECARGA!", "#ffaa00");
           }
         } else if (en.state === "charge") {
-          // Fase de aviso / telegrafiado (75 frames = 1.25 segundos)
           en.phaseTimer++;
           en.vx = 0;
           en.flash = 2;
@@ -927,7 +1155,6 @@
           burst(ecx + rand(-35, 35), en.y + rand(15, 60), "#ff7b00", 3);
 
           if (en.phaseTimer >= 75) {
-            // Ejecutar ataque rápido (embestida + ráfaga de 5 proyectiles)
             en.state = "attack";
             en.phaseTimer = 0;
             en.facing = dx >= 0 ? 1 : -1;
@@ -1064,6 +1291,19 @@
       if (b.orangeFire) {
         particles.push({ x: b.x + rand(-3, 3), y: b.y + rand(-3, 3), vx: rand(-0.5, 0.5), vy: rand(-0.5, 0.5), life: 8, max: 8, color: "#ff7b00", s: 4, g: 0.05 });
       }
+      if (b.stunOrb) {
+        particles.push({
+          x: b.x + rand(-3, 3),
+          y: b.y + rand(-3, 3),
+          vx: rand(-0.5, 0.5),
+          vy: rand(-0.5, 0.5),
+          life: 8,
+          max: 8,
+          color: Math.random() < 0.5 ? "#5cf6ff" : "#ffe600",
+          s: 4,
+          g: 0,
+        });
+      }
       const box = { x: b.x - b.r, y: b.y - b.r, w: b.r * 2, h: b.r * 2 };
       let hitTile = false;
       for (const t of tilesTouching(box)) {
@@ -1098,12 +1338,18 @@
         const pb = bodyBox(player);
         if (b.x > pb.x && b.x < pb.x + pb.w && b.y > pb.y && b.y < pb.y + pb.h) {
           hurtPlayer(b.dmg);
+          if (b.stunOrb) {
+            player.stunTimer = 120; // 2 segundos (120 frames)
+            sfx.stunShock();
+            floatText(player.x + 11, player.y - 20, "¡PARALIZADO (2s)!", "#ffe600");
+            burst(player.x + 11, player.y + 18, "#ffe600", 14);
+          }
           b.life = 0;
           burst(b.x, b.y, b.color, 6);
         }
       }
     }
-    bullets = bullets.filter((b) => b.life > 0 && b.x > cam.x - 40 && b.x < cam.x + VIEW_W + 40);
+    bullets = bullets.filter((b) => b.life > 0 && b.x > cam.x - 40 && b.x < cam.x + VIEW_W + 40 && b.y > cam.y - 40 && b.y < cam.y + VIEW_H + 40);
   }
 
   function updateParticles() {
@@ -1470,12 +1716,60 @@
   function drawEnemy(en) {
     const x = en.x + en.w / 2 - cam.x;
     const y = en.y + en.h - cam.y;
-    if (x < -120 || x > VIEW_W + 120) return;
+    if (x < -160 || x > VIEW_W + 160 || y < -160 || y > VIEW_H + 160) return;
     const set = SPR[en.type];
     if (!set) return;
     let frame = Math.floor(en.anim) % 2 === 0 ? set.idle : set.walk;
 
-    if (en.type === "radstar") {
+    if (en.type === "alien_ship") {
+      if (en.state === "laser") {
+        frame = set.laser || set.idle;
+        if (en.phaseTimer < 45) {
+          // Haz guía de advertencia rojo
+          ctx.save();
+          ctx.strokeStyle = "rgba(239,35,60,0.75)";
+          ctx.setLineDash([8, 6]);
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x, y + 460);
+          ctx.stroke();
+          ctx.restore();
+        } else if (en.phaseTimer < 95) {
+          // Columna devastadora de rayo láser vertical
+          ctx.save();
+          const grad = ctx.createLinearGradient(x - 24, 0, x + 24, 0);
+          grad.addColorStop(0, "rgba(239,35,60,0)");
+          grad.addColorStop(0.2, "rgba(239,35,60,0.85)");
+          grad.addColorStop(0.5, "#ffffff");
+          grad.addColorStop(0.8, "rgba(239,35,60,0.85)");
+          grad.addColorStop(1, "rgba(239,35,60,0)");
+          ctx.fillStyle = grad;
+          ctx.fillRect(x - 24, y, 48, 480);
+          ctx.restore();
+        }
+      } else if (en.state === "tractor") {
+        frame = set.tractor || set.idle;
+        if (en.phaseTimer >= 35 && en.phaseTimer < 140) {
+          // Cono de rayo tractor de gravedad
+          ctx.save();
+          const tgrad = ctx.createLinearGradient(0, y, 0, y + 200);
+          tgrad.addColorStop(0, "rgba(92,246,255,0.75)");
+          tgrad.addColorStop(1, "rgba(92,246,255,0.12)");
+          ctx.fillStyle = tgrad;
+          ctx.beginPath();
+          ctx.moveTo(x - 18, y + 2);
+          ctx.lineTo(x + 18, y + 2);
+          ctx.lineTo(x + 55, y + 200);
+          ctx.lineTo(x - 55, y + 200);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+      } else if (en.state === "stun_orb") {
+        frame = set.stun || set.idle;
+      }
+    } else if (en.type === "radstar") {
       if (en.cool < 16 && set.shoot) frame = set.shoot;
     } else if (en.type === "radboss") {
       if (en.state === "charge" && set.charge) frame = set.charge;
@@ -1498,6 +1792,9 @@
     } else if (en.type === "radboss" && en.state === "charge") {
       ctx.shadowColor = "#ff7b00";
       ctx.shadowBlur = 18;
+    } else if (en.type === "alien_ship") {
+      ctx.shadowColor = "#5cf6ff";
+      ctx.shadowBlur = 16;
     }
 
     blit(frame, x, y, en.facing < 0);
@@ -1520,8 +1817,8 @@
       ctx.beginPath();
       ctx.arc(b.x - cam.x, b.y - cam.y, b.r, 0, Math.PI * 2);
       ctx.fill();
-      if (b.plasma || b.explode || b.greenFire || b.orangeFire) {
-        ctx.fillStyle = "rgba(255,255,255,0.6)";
+      if (b.plasma || b.explode || b.greenFire || b.orangeFire || b.stunOrb) {
+        ctx.fillStyle = "rgba(255,255,255,0.7)";
         ctx.beginPath();
         ctx.arc(b.x - cam.x, b.y - cam.y, b.r * 0.45, 0, Math.PI * 2);
         ctx.fill();
@@ -1587,6 +1884,12 @@
     ctx.fillStyle = w.accent;
     ctx.fillText(w.short + "  " + p.ammo[p.weapon] + "/" + w.maxAmmo, 24, 76);
 
+    if (p.stunTimer > 0) {
+      ctx.fillStyle = "#ffe600";
+      ctx.font = "bold 11px Courier New";
+      ctx.fillText("¡PARALIZADO!", 220, 76);
+    }
+
     ctx.fillStyle = "rgba(7,6,12,0.62)";
     ctx.fillRect(VIEW_W - 268, 12, 256, 64);
     ctx.strokeStyle = w.color;
@@ -1607,35 +1910,47 @@
     ctx.font = "9px Courier New";
     ctx.fillText(w.specialName, VIEW_W - 254, 64);
 
-    const remain = Math.max(0, doorX - player.x);
-    const zx = Math.floor(player.x / TILE);
-    let zname = "PATIO";
-    for (let i = 0; i < zones.length; i++) {
-      if (zx >= zones[i].x0 && zx < zones[i].x1) zname = zones[i].name;
+    let zname = "SECTOR";
+    let distText = "";
+    if (isVerticalLevel) {
+      const zy = Math.floor(player.y / TILE);
+      for (let i = 0; i < zones.length; i++) {
+        if (zy >= zones[i].y0 && zy < zones[i].y1) zname = zones[i].name;
+      }
+      const remainH = Math.max(0, player.y - (doorY || 19 * TILE));
+      distText = zname + "  ·  " + Math.floor(remainH / TILE) + " m hacia la cima ↑";
+    } else {
+      const remain = Math.max(0, doorX - player.x);
+      const zx = Math.floor(player.x / TILE);
+      for (let i = 0; i < zones.length; i++) {
+        if (zx >= zones[i].x0 && zx < zones[i].x1) zname = zones[i].name;
+      }
+      distText = zname + "  ·  " + Math.floor(remain / TILE) + " m  →";
     }
+
     ctx.fillStyle = "rgba(7,6,12,0.65)";
-    ctx.fillRect(VIEW_W / 2 - 150, 12, 300, 22);
+    ctx.fillRect(VIEW_W / 2 - 170, 12, 340, 22);
     ctx.fillStyle = "#5cf6ff";
     ctx.textAlign = "center";
     ctx.font = "bold 11px Courier New";
-    ctx.fillText(zname + "  ·  " + Math.floor(remain / TILE) + " m  →", VIEW_W / 2, 28);
+    ctx.fillText(distText, VIEW_W / 2, 28);
 
     // Barra de Vida de Boss Activo
     const activeBoss = enemies.find((e) => !e.dead && ENEMY_TYPES[e.type].boss);
     if (activeBoss) {
-      const bw = 400;
+      const bw = 420;
       const bx = VIEW_W / 2 - bw / 2;
       const by = 40;
       ctx.fillStyle = "rgba(7,6,12,0.85)";
       ctx.fillRect(bx, by, bw, 22);
       const isOverheated = activeBoss.type === "radboss" && activeBoss.state === "overheat";
       const isCharging = activeBoss.type === "radboss" && activeBoss.state === "charge";
-      ctx.strokeStyle = isOverheated ? "#5cf6ff" : (isCharging ? "#ffe600" : (activeBoss.type === "radboss" ? "#ff7b00" : "#ef233c"));
+      ctx.strokeStyle = isOverheated ? "#5cf6ff" : (isCharging ? "#ffe600" : (activeBoss.type === "alien_ship" ? "#5cf6ff" : (activeBoss.type === "radboss" ? "#ff7b00" : "#ef233c")));
       ctx.lineWidth = 2;
       ctx.strokeRect(bx, by, bw, 22);
 
       const hpRatio = clamp(activeBoss.hp / activeBoss.maxHp, 0, 1);
-      ctx.fillStyle = isOverheated ? "#5cf6ff" : (isCharging ? "#ffe600" : (activeBoss.type === "radboss" ? "#ff3c00" : "#ef233c"));
+      ctx.fillStyle = isOverheated ? "#5cf6ff" : (isCharging ? "#ffe600" : (activeBoss.type === "alien_ship" ? "#00f0ff" : (activeBoss.type === "radboss" ? "#ff3c00" : "#ef233c")));
       ctx.fillRect(bx + 2, by + 2, (bw - 4) * hpRatio, 18);
 
       ctx.fillStyle = "#fff";
@@ -1646,6 +1961,11 @@
         if (isOverheated) statusTag = " [¡NUCLEO EXPUESTO! 2X DANO]";
         else if (isCharging) statusTag = " [¡ALERTA: SOBRECARGA!]";
         else statusTag = " [ARMADURA ACTIVA: 35% DANO]";
+      } else if (activeBoss.type === "alien_ship") {
+        if (activeBoss.state === "laser") statusTag = " [¡RAYO LASER VERTICAL!]";
+        else if (activeBoss.state === "tractor") statusTag = " [¡RAYO TRACTOR DE GRAVEDAD!]";
+        else if (activeBoss.state === "stun_orb") statusTag = " [¡ORBE PARALIZANTE!]";
+        else statusTag = " [ESCUDOS DE PLASMA]";
       }
       ctx.fillText(ENEMY_TYPES[activeBoss.type].name.toUpperCase() + statusTag, VIEW_W / 2, by + 15);
     }
@@ -1682,7 +2002,7 @@
     roundRect(VIEW_W / 2 - 314, 56, 628, 428, 4);
     ctx.stroke();
     ctx.fillStyle = "#5cf6ff";
-    ctx.font = "bold 32px Courier New";
+    ctx.font = "bold 30px Courier New";
     ctx.textAlign = "center";
     ctx.fillText(title, VIEW_W / 2, 108);
     ctx.fillStyle = "#e0b33a";
@@ -1703,25 +2023,28 @@
       drawBg();
       panel("YAEL — PROTOCOLO BELMONT", [
         "Armadura MJOLNIR. Fuego Radiactivo. Lava Viva.",
-        "Cruza los dos sectores y destruye a las amenazas alienigenas.",
+        "Cruza los tres sectores y destruye a las amenazas alienigenas.",
         "",
-        "NIVEL 1: Castillo & Gyojin de Lava",
-        "NIVEL 2: Reactor Radiactivo (Estrellas Verdes & Titan Naranja)",
+        "NIVEL 1: Castillo & Gyojin de Lava (Rey Marino)",
+        "NIVEL 2: Reactor Radiactivo (Estrellas & Titan Colosal)",
+        "NIVEL 3: Torre del Cataclismo (Lava Ascendente & Nave Nodriza)",
         "",
         "CONTROLES:",
         "A / D: Moverse    S: Agacharse    W / Espacio: Saltar",
         "Mouse: Apuntar    Clic Izq: Disparar    Clic Der: Especial",
         "E: Cambiar Arma   P: Pausa        M: Silencio",
         "",
-        "ENTER o Clic para Empezar  |  Presiona 1 o 2 para elegir Nivel",
+        "ENTER o Clic para Empezar  |  Presiona 1, 2 o 3 para elegir Nivel",
       ]);
       return;
     }
 
     drawBg();
-    const x0 = Math.floor(cam.x / TILE) - 1;
-    const x1 = Math.floor((cam.x + VIEW_W) / TILE) + 1;
-    for (let ty = 0; ty < worldH; ty++) {
+    const x0 = Math.max(0, Math.floor(cam.x / TILE) - 1);
+    const x1 = Math.min(worldW - 1, Math.floor((cam.x + VIEW_W) / TILE) + 1);
+    const y0 = Math.max(0, Math.floor(cam.y / TILE) - 1);
+    const y1 = Math.min(worldH - 1, Math.floor((cam.y + VIEW_H) / TILE) + 1);
+    for (let ty = y0; ty <= y1; ty++) {
       for (let tx = x0; tx <= x1; tx++) {
         const id = tileAt(tx, ty);
         if (id) drawTile(id, tx, ty);
@@ -1732,6 +2055,20 @@
     drawPlayer();
     drawBullets();
     drawParticles();
+
+    if (currentLevel === 3 && risingLavaY < worldH * TILE) {
+      const ly = risingLavaY - cam.y;
+      if (ly < VIEW_H) {
+        ctx.fillStyle = "rgba(255, 60, 0, 0.88)";
+        ctx.fillRect(0, Math.max(0, ly), VIEW_W, VIEW_H - Math.max(0, ly));
+        ctx.fillStyle = "#ffe600";
+        for (let i = 0; i < VIEW_W; i += 16) {
+          const wy = ly + Math.sin(time * 0.2 + i * 0.08) * 4;
+          ctx.fillRect(i, wy, 16, 5);
+        }
+      }
+    }
+
     drawHUD();
 
     if (state === "pause") {
@@ -1756,24 +2093,39 @@
         "Presiona ENTER o ESPACIO para avanzar al Nivel 2",
       ]);
     }
+    if (state === "level_clear_2") {
+      panel("¡NIVEL 2 SUPERADO!", [
+        "El Titan Radiactivo ha sido derrotado y el reactor apagado.",
+        "Siguiente mision: LA TORRE DEL CATACLISMO (NIVEL 3).",
+        "",
+        "¡ALERTA: LA LAVA SUBE POR LA TORRE!",
+        "Escala rápidamente los 10 pisos hasta la azotea.",
+        "En la cima, destruye a la Nave Nodriza Alienigena.",
+        "¡Esquiva su Laser Vertical, Rayo Tractor y Orbes Paralizantes!",
+        "",
+        "Reliquias acumuladas: " + (coins | 0) + "    Bajas: " + kills,
+        "",
+        "Presiona ENTER o ESPACIO para avanzar al Nivel 3",
+      ]);
+    }
     if (state === "dead") {
       panel("CAIDA EN COMBATE", [
         "Yael cayo en " + levelName,
         "Reliquias: " + (coins | 0) + "    Bajas: " + kills,
         "",
         "ENTER o R para reintentar este nivel",
-        "Presiona 1 para Nivel 1  |  2 para Nivel 2",
+        "Presiona 1 para Nivel 1  |  2 para Nivel 2  |  3 para Nivel 3",
       ]);
     }
     if (state === "win") {
       panel("¡VICTORIA TOTAL!", [
-        "Protocolo Belmont completado.",
-        "El Titan Radiactivo y el Reactor han sido destruidos.",
+        "Protocolo Belmont completado con exito rotundo.",
+        "La Nave Nodriza ha sido destruida y la Tierra esta a salvo.",
         "",
         "Reliquias totales: " + (coins | 0) + "    Bajas: " + kills,
         "Vidas restantes: " + lives,
         "",
-        "ENTER o R para jugar de nuevo (1: Nivel 1, 2: Nivel 2)",
+        "ENTER o R para reiniciar la campaña (1, 2 o 3)",
       ]);
     }
   }

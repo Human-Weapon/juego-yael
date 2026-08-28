@@ -143,6 +143,77 @@ function testLevel(levelNum) {
   let stuck = 0;
   let lastX = p.x;
 
+  if (lvl.isVertical) {
+    // Bot escalador para la torre de Nivel 3
+    p.x = 18 * TILE;
+    p.y = 175 * TILE - PHYS.PLAYER_H;
+    let targetFloorY = 166;
+    let floorIdx = 0;
+    const floorGoals = [
+      { x: 30 * TILE, fy: 166 },
+      { x: 5 * TILE, fy: 154 },
+      { x: 30 * TILE, fy: 142 },
+      { x: 5 * TILE, fy: 130 },
+      { x: 18 * TILE, fy: 118 },
+      { x: 30 * TILE, fy: 104 },
+      { x: 5 * TILE, fy: 90 },
+      { x: 30 * TILE, fy: 76 },
+      { x: 5 * TILE, fy: 62 },
+      { x: 30 * TILE, fy: 48 },
+      { x: 18 * TILE, fy: 30 },
+      { x: 17 * TILE, fy: 20 },
+    ];
+
+    for (let frame = 0; frame < 15000; frame++) {
+      p.inLava = false;
+      p.fell = false;
+
+      const curGoal = floorGoals[floorIdx] || floorGoals[floorGoals.length - 1];
+      const dx = curGoal.x - p.x;
+      const dy = curGoal.fy * TILE - p.y;
+
+      p.vx = Math.abs(dx) > 3 ? Math.sign(dx) * PHYS.RUN : 0;
+
+      const lookX = Math.floor((p.x + (dx >= 0 ? p.w + 14 : -14)) / TILE);
+      const chestY = Math.floor((p.y + p.h * 0.5) / TILE);
+      const obstacleAhead = solid(tileAt(lookX, chestY)) || tileAt(lookX, chestY) === T.PIPE_TOP;
+
+      if (p.onGround) p.coyote = PHYS.COYOTE;
+      // Saltar si hay obstáculo delante, o si estamos cerca de la abertura y debemos subir
+      if (obstacleAhead || (Math.abs(dx) < 70 && dy < 0)) {
+        p.jumpBuf = PHYS.JUMP_BUF;
+      }
+      if (p.jumpBuf > 0 && p.coyote > 0) {
+        p.vy = PHYS.JUMP;
+        p.onGround = false;
+        p.jumpBuf = 0;
+        p.coyote = 0;
+        jumps++;
+      }
+
+      const g = p.vy < 0 ? PHYS.HOLD_GRAV : PHYS.GRAVITY;
+      p.vy += g;
+      if (p.vy > PHYS.MAX_FALL) p.vy = PHYS.MAX_FALL;
+
+      moveActor(p);
+      if (p.coyote > 0) p.coyote--;
+      if (p.jumpBuf > 0) p.jumpBuf--;
+
+      if (p.y <= (curGoal.fy + 1) * TILE && Math.abs(dx) < 48) {
+        floorIdx++;
+      }
+
+      if (p.y <= 24 * TILE && Math.abs(p.x - lvl.doorX) < 40) {
+        ok("Bot reached summit door in " + frame + " frames, jumps=" + jumps);
+        break;
+      }
+      if (frame === 14999) {
+        fail("Bot did not reach summit, y=" + (p.y / TILE).toFixed(1) + " floorIdx=" + floorIdx);
+      }
+    }
+    return;
+  }
+
   for (let frame = 0; frame < 9000; frame++) {
     p.inLava = false;
     p.fell = false;
@@ -197,6 +268,7 @@ function testLevel(levelNum) {
 
 testLevel(1);
 testLevel(2);
+testLevel(3);
 
 if (!process.exitCode) console.log("\nALL LEVEL PLAYABILITY CHECKS PASSED!");
 else console.log("\nSOME CHECKS FAILED!");

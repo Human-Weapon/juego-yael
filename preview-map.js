@@ -210,7 +210,36 @@ function renderLevelPreview(num, filename, title) {
   writePng(path.join(outDir, filename), full.w, full.h, full.pix);
 }
 
+function renderVerticalLevelPreview(filename, title) {
+  const lvl = L.buildLevel(3);
+  const S = 6;
+  const header = 36;
+  const full = makeBuf(lvl.worldW * S + 120, lvl.worldH * S + header, 245, 236, 220);
+  fill(full, 0, 0, full.w, header, 28, 22, 40);
+  text(full, 8, 8, title, 92, 246, 255, 2);
+
+  drawWorld(lvl, full, 0, header, S, 0, lvl.worldW);
+
+  // Zona indicadora a la derecha
+  for (let i = 0; i < (lvl.zones || []).length; i++) {
+    const z = lvl.zones[i];
+    const y0 = header + z.y0 * S;
+    const h = (z.y1 - z.y0) * S;
+    fill(full, lvl.worldW * S + 4, y0, 10, h - 1, 92, 246, 255);
+    text(full, lvl.worldW * S + 18, y0 + 4, z.name, 40, 50, 70, 1);
+  }
+
+  // Boss Spawn en la azotea
+  if (lvl.spawns && lvl.spawns.boss) {
+    fill(full, lvl.spawns.boss.tileX * S - 12, header + lvl.spawns.boss.tileY * S - 8, 32, 16, 92, 246, 255);
+    text(full, lvl.spawns.boss.tileX * S - 28, header + lvl.spawns.boss.tileY * S - 20, "BOSS: NAVE NODRIZA", 20, 60, 120, 1);
+  }
+
+  writePng(path.join(outDir, filename), full.w, full.h, full.pix);
+}
+
 renderLevelPreview(1, "preview-layout.png", "NIVEL 1: PROTOCOLO BELMONT");
 renderLevelPreview(2, "preview-layout-l2.png", "NIVEL 2: REACTOR RADIACTIVO");
+renderVerticalLevelPreview("preview-layout-l3.png", "NIVEL 3: TORRE DEL CATACLISMO");
 
 console.log("Generated map previews successfully in", outDir);
