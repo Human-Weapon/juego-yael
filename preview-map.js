@@ -238,7 +238,7 @@ function renderVerticalLevelPreview(filename, title) {
   writePng(path.join(outDir, filename), full.w, full.h, full.pix);
 }
 
-renderLevelPreview(1, "preview-layout.png", "NIVEL 1: PROTOCOLO BELMONT");
+renderLevelPreview(1, "preview-layout.png", "NIVEL 1: COSTA DE HIERRO");
 renderLevelPreview(2, "preview-layout-l2.png", "NIVEL 2: REACTOR RADIACTIVO");
 renderVerticalLevelPreview("preview-layout-l3.png", "NIVEL 3: TORRE DEL CATACLISMO");
 

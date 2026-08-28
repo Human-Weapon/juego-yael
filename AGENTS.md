@@ -1,4 +1,4 @@
-# Yael contributor notes
+# Protocol Omega contributor notes
 
 - This is a static browser game; do not add a build system or runtime dependency without a concrete gameplay need.
 - Keep the portal closed until the active boss is defeated.

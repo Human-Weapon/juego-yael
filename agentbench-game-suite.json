@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "id": "yael-campaign-verification",
-  "name": "Yael campaign deterministic verification",
+  "id": "protocol-omega-campaign-verification",
+  "name": "Protocol Omega campaign deterministic verification",
   "description": "Runs each local campaign verification twice to measure correctness and repeatability.",
   "seed": 20260828,
   "repetitions": 1,
@@ -24,7 +24,7 @@
     { "id": "first-pass", "name": "First local verification", "config": { "mode": "verification" } },
     { "id": "repeat-pass", "name": "Repeatability verification", "config": { "mode": "verification" } }
   ],
-  "target": { "type": "command", "script": "tools/run_game_benchmark.py" },
+  "target": { "type": "command", "script": "tools/run_game_benchmark.js" },
   "evaluators": [
     { "type": "exit_code", "expected": 0 }
   ],

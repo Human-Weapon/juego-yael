@@ -62,6 +62,7 @@ const instrumented = source.replace(marker, `  requestAnimationFrame(loop);
     crouch() { startGame(1); player.crouch = true; player.onGround = true; },
     run() { startGame(1); player.onGround = true; player.vx = 5; player.anim = 0; },
     renderAt(frame) { startGame(1); player.onGround = true; player.vx = 0; time = frame; draw(); },
+    finish() { state = "win"; },
     session() { return { state, level: currentLevel, x: player && player.x }; },
     tick() { update(); },
     draw() { draw(); },
@@ -103,6 +104,12 @@ const check = (condition, message) => condition
   ? console.log("OK  ", message)
   : (failures++, console.error("FAIL", message));
 
+calls.length = 0;
+ui.draw();
+check(ui.menu().state === "title", "el juego abre en la pantalla de inicio");
+check(calls.some((call) => call.key === "fillText" && call.args[0] === "PROTOCOL OMEGA"), "la pantalla de inicio muestra el nuevo nombre");
+ui.key("Enter");
+check(ui.menu().state === "menu", "Enter avanza de la portada a la campaña");
 check(ui.menu().page === 0 && ui.menu().selected === 1, "el menú comienza en la primera página y el nivel 1");
 ui.key("d");
 check(ui.menu().page === 1 && ui.menu().selected === 5, "D avanza una página completa y conserva la posición de tarjeta");
@@ -144,6 +151,16 @@ check(calls.some((call) => call.key === "drawImage" && call.args[0] === classicI
 calls.length = 0;
 ui.renderAt(180);
 check(!calls.some((call) => call.key === "fillRect" && call.args[0] === 0 && call.args[1] === 0 && call.args[2] === 960 && call.args[3] === 540 && call.fillStyle === "rgba(180,200,255,0.12)"), "el juego no aplica flashes blancos periódicos a pantalla completa");
+
+ui.finish();
+ui.key("Enter");
+check(ui.menu().state === "credits", "la victoria conduce a créditos antes de reiniciar");
+calls.length = 0;
+ui.draw();
+const creditLines = calls.filter((call) => call.key === "fillText").map((call) => String(call.args[0]));
+check(creditLines.includes("Jonathan Yael Maldonado Rodríguez"), "los créditos incluyen al diseñador de niveles y programador");
+check(creditLines.includes("Abraham Rodríguez Arana"), "los créditos incluyen al programador y auditor");
+check(creditLines.some((line) => line.includes("github.com/Human-Weapon/protocol-omega")), "los créditos muestran el repositorio oficial");
 
 if (failures) {
   console.error(`\nMENU UI CHECK FAILED: ${failures} problema(s)`);

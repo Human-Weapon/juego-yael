@@ -11,6 +11,8 @@
   const VIEW_W = 960;
   const VIEW_H = 540;
   const CAMPAIGN = L.CAMPAIGN_LEVELS || [];
+  const PROJECT_TITLE = "PROTOCOL OMEGA";
+  const OFFICIAL_REPOSITORY = "https://github.com/Human-Weapon/protocol-omega";
 
   const WEAPONS = [
     {
@@ -67,9 +69,9 @@
   const mouse = { x: VIEW_W / 2, y: VIEW_H / 2, left: false, right: false, leftClick: false, rightClick: false };
   const dashTap = { left: -9999, right: -9999 };
 
-  let state = "menu";
+  let state = "title";
   let currentLevel = 1;
-  let levelName = "NIVEL 1: PROTOCOLO BELMONT";
+  let levelName = "NIVEL 1: COSTA DE HIERRO";
   let time = 0;
   let shake = 0;
   let cam = { x: 0, y: 0 };
@@ -350,6 +352,23 @@
     if (isSpace) keys.space = true;
     if (isSpace || ["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d"].includes(k)) e.preventDefault();
 
+    if (state === "title") {
+      if (k === "enter" || isSpace) {
+        ensureAudio();
+        state = "menu";
+        sfx.switch();
+      }
+      return;
+    }
+
+    if (state === "credits") {
+      if (k === "enter" || isSpace || k === "escape" || k === "r") {
+        state = "title";
+        pauseBGM();
+      }
+      return;
+    }
+
     if (state === "menu") {
       // A/D recorren páginas completas. Las flechas horizontales siguen
       // moviendo el foco entre las tarjetas visibles, de modo que ambas
@@ -405,9 +424,9 @@
     if (k === "enter" || k === " ") {
       if (state === "level_clear" || state === "level_clear_2") openCharacterSelect(Math.min(CAMPAIGN.length, currentLevel + 1));
       else if (state === "dead" && lives <= 0) startGame(currentLevel || 1);
-      else if (state === "win") startGame(1);
+      else if (state === "win") state = "credits";
     }
-    if (/^[0-9]$/.test(k) && (state === "dead" || state === "win" || state.startsWith("level_clear"))) {
+    if (/^[0-9]$/.test(k) && (state === "dead" || state.startsWith("level_clear"))) {
       const requested = k === "0" ? 10 : Number(k);
       if (requested <= CAMPAIGN.length) startGame(requested);
     }
@@ -438,7 +457,8 @@
       dashTap[slot] = time;
       if (doubled) startDash(direction);
     }
-    if (k === "r" && (state === "dead" || state === "win" || state.startsWith("level_clear"))) startGame(currentLevel);
+    if (k === "r" && (state === "dead" || state.startsWith("level_clear"))) startGame(currentLevel);
+    if (k === "r" && state === "win") state = "credits";
   });
   window.addEventListener("keyup", (e) => {
     const k = e.key.toLowerCase();
@@ -500,6 +520,23 @@
   canvas.addEventListener("mousedown", (e) => {
     e.preventDefault();
     ensureAudio();
+    if (state === "title") {
+      state = "menu";
+      sfx.switch();
+      return;
+    }
+    if (state === "win") {
+      state = "credits";
+      return;
+    }
+    if (state === "credits") {
+      if (mouse.x >= 235 && mouse.x <= 725 && mouse.y >= 408 && mouse.y <= 438 && typeof window.open === "function") {
+        window.open(OFFICIAL_REPOSITORY, "_blank", "noopener,noreferrer");
+      } else {
+        state = "title";
+      }
+      return;
+    }
     if (state === "play" && e.button === 0) {
       const control = gameControlAt(mouse.x, mouse.y);
       if (control === "restart") {
@@ -668,7 +705,7 @@
     particles = [];
     pickups = [];
     floating = [];
-    if (lives <= 0 || state === "menu" || state === "win" || currentLevel === 1) {
+    if (lives <= 0 || state === "title" || state === "menu" || state === "credits" || state === "win" || currentLevel === 1) {
       lives = 4;
     }
     winT = 0;
@@ -3055,7 +3092,7 @@
     // La selección de personaje ocurre antes de crear el jugador del nivel.
     // Pausar aquí evita que el bucle intente actualizar un jugador null y
     // congele la pantalla con un TypeError en cada frame.
-    if (state === "pause" || state === "menu" || state === "character_select" || state === "loadout" || state === "dead") return;
+    if (state === "pause" || state === "title" || state === "menu" || state === "character_select" || state === "loadout" || state === "credits" || state === "dead") return;
     if (state === "win") {
       winT++;
       return;
@@ -3828,7 +3865,7 @@
     ctx.fillStyle = "#5cf6ff";
     ctx.font = "bold 14px Courier New";
     ctx.textAlign = "left";
-    ctx.fillText("YAEL  [" + (levelName.split(":")[0] || "NIVEL 1") + "]", 24, 32);
+    ctx.fillText("OMEGA  [" + (levelName.split(":")[0] || "NIVEL 1") + "]", 24, 32);
     const heartColumns = p.maxHp > 8 ? 8 : 12;
     for (let i = 0; i < p.maxHp; i++) {
       ctx.fillStyle = i < p.hp ? "#ef233c" : "#2a1014";
@@ -3993,7 +4030,7 @@
     ctx.fillText(title, VIEW_W / 2, 108);
     ctx.fillStyle = "#e0b33a";
     ctx.font = "bold 14px Courier New";
-    ctx.fillText("PROTOCOLO BELMONT", VIEW_W / 2, 134);
+    ctx.fillText(PROJECT_TITLE, VIEW_W / 2, 134);
     ctx.fillStyle = "#d0d6e0";
     ctx.font = "13px Courier New";
     let yy = 175;
@@ -4001,6 +4038,140 @@
       ctx.fillText(ln, VIEW_W / 2, yy);
       yy += 22;
     }
+  }
+
+  function drawOmegaSeal(cx, cy, radius, color) {
+    const pulse = 0.92 + Math.sin(time * 0.035) * 0.05;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(pulse, pulse);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 5;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 22;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, Math.PI * 0.12, Math.PI * 0.88, true);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-radius * 0.75, radius * 0.65);
+    ctx.lineTo(-radius * 0.34, radius * 0.65);
+    ctx.lineTo(-radius * 0.15, radius * 0.22);
+    ctx.moveTo(radius * 0.75, radius * 0.65);
+    ctx.lineTo(radius * 0.34, radius * 0.65);
+    ctx.lineTo(radius * 0.15, radius * 0.22);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawTitleScreen() {
+    const background = ctx.createLinearGradient(0, 0, 0, VIEW_H);
+    background.addColorStop(0, "#03050c");
+    background.addColorStop(0.55, "#0a1322");
+    background.addColorStop(1, "#16060e");
+    ctx.fillStyle = background;
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+
+    ctx.fillStyle = "rgba(92,246,255,.4)";
+    for (let i = 0; i < 46; i++) {
+      const x = (i * 173 + 41) % VIEW_W;
+      const y = (i * 97 + 29) % VIEW_H;
+      const shimmer = 0.3 + 0.7 * Math.abs(Math.sin(time * 0.018 + i));
+      ctx.globalAlpha = shimmer;
+      ctx.fillRect(x, y, i % 7 === 0 ? 2 : 1, i % 7 === 0 ? 2 : 1);
+    }
+    ctx.globalAlpha = 1;
+
+    ctx.fillStyle = "rgba(7,6,12,.76)";
+    roundRect(76, 42, VIEW_W - 152, VIEW_H - 84, 14);
+    ctx.fill();
+    ctx.strokeStyle = "#e0b33a";
+    ctx.lineWidth = 2;
+    roundRect(76, 42, VIEW_W - 152, VIEW_H - 84, 14);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(92,246,255,.42)";
+    ctx.lineWidth = 1;
+    roundRect(84, 50, VIEW_W - 168, VIEW_H - 100, 10);
+    ctx.stroke();
+
+    drawOmegaSeal(VIEW_W / 2, 188, 78, "#5cf6ff");
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#f5f7ff";
+    ctx.font = "bold 48px Courier New";
+    ctx.shadowColor = "#5cf6ff";
+    ctx.shadowBlur = 16;
+    ctx.fillText(PROJECT_TITLE, VIEW_W / 2, 320);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#e0b33a";
+    ctx.font = "bold 13px Courier New";
+    ctx.fillText("LA ÚLTIMA DIRECTIVA", VIEW_W / 2, 348);
+
+    const promptAlpha = 0.78 + Math.sin(time * 0.08) * 0.18;
+    ctx.globalAlpha = promptAlpha;
+    ctx.fillStyle = "#5cf6ff";
+    ctx.font = "bold 15px Courier New";
+    ctx.fillText("ENTER · ESPACIO · CLIC PARA INICIAR", VIEW_W / 2, 412);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "#7f8ca5";
+    ctx.font = "9px Courier New";
+    ctx.fillText("VERSIÓN OFICIAL · CÓDIGO FUENTE DISPONIBLE PARA COLABORACIÓN", VIEW_W / 2, 472);
+  }
+
+  function drawCreditsScreen() {
+    const background = ctx.createLinearGradient(0, 0, 0, VIEW_H);
+    background.addColorStop(0, "#03050c");
+    background.addColorStop(1, "#101d2c");
+    ctx.fillStyle = background;
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    ctx.fillStyle = "rgba(7,6,12,.9)";
+    roundRect(84, 32, VIEW_W - 168, VIEW_H - 64, 12);
+    ctx.fill();
+    ctx.strokeStyle = "#e0b33a";
+    ctx.lineWidth = 3;
+    roundRect(84, 32, VIEW_W - 168, VIEW_H - 64, 12);
+    ctx.stroke();
+
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#5cf6ff";
+    ctx.font = "bold 31px Courier New";
+    ctx.fillText("CRÉDITOS", VIEW_W / 2, 82);
+    ctx.fillStyle = "#e0b33a";
+    ctx.font = "bold 13px Courier New";
+    ctx.fillText(PROJECT_TITLE, VIEW_W / 2, 108);
+
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 15px Courier New";
+    ctx.fillText("Jonathan Yael Maldonado Rodríguez", VIEW_W / 2, 166);
+    ctx.fillStyle = "#aeb8ca";
+    ctx.font = "12px Courier New";
+    ctx.fillText("Diseñador de niveles y programador", VIEW_W / 2, 190);
+
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 15px Courier New";
+    ctx.fillText("Abraham Rodríguez Arana", VIEW_W / 2, 238);
+    ctx.fillStyle = "#aeb8ca";
+    ctx.font = "12px Courier New";
+    ctx.fillText("Programador y auditor del miniproyecto", VIEW_W / 2, 262);
+
+    ctx.fillStyle = "#72f1b8";
+    ctx.font = "bold 12px Courier New";
+    ctx.fillText("PROYECTO DE CÓDIGO FUENTE DISPONIBLE", VIEW_W / 2, 318);
+    ctx.fillStyle = "#aeb8ca";
+    ctx.font = "11px Courier New";
+    ctx.fillText("Se puede agregar y compartir contenido para fines no comerciales.", VIEW_W / 2, 340);
+    ctx.fillText("El uso comercial requiere autorización escrita.", VIEW_W / 2, 360);
+
+    const linkHover = mouse.x >= 235 && mouse.x <= 725 && mouse.y >= 408 && mouse.y <= 438;
+    ctx.fillStyle = linkHover ? "#ffe600" : "#5cf6ff";
+    ctx.font = "bold 11px Courier New";
+    ctx.fillText(OFFICIAL_REPOSITORY, VIEW_W / 2, 426);
+    ctx.strokeStyle = ctx.fillStyle;
+    ctx.beginPath();
+    ctx.moveTo(270, 431);
+    ctx.lineTo(690, 431);
+    ctx.stroke();
+    ctx.fillStyle = "#7f8ca5";
+    ctx.font = "9px Courier New";
+    ctx.fillText("CLIC EN EL ENLACE · ENTER PARA VOLVER AL INICIO", VIEW_W / 2, 472);
   }
 
   function drawLegacyLevelSelectMenu() {
@@ -4017,7 +4188,7 @@
     ctx.fillStyle = "#5cf6ff";
     ctx.font = "bold 30px Courier New";
     ctx.textAlign = "center";
-    ctx.fillText("YAEL — PROTOCOLO BELMONT", VIEW_W / 2, 54);
+    ctx.fillText(PROJECT_TITLE, VIEW_W / 2, 54);
 
     ctx.fillStyle = "#e0b33a";
     ctx.font = "bold 13px Courier New";
@@ -4031,7 +4202,7 @@
       {
         num: 1,
         title: "NIVEL 1: CASTILLO",
-        sub: "PROTOCOLO BELMONT",
+        sub: "FORTALEZA DEL LITORAL",
         tag: "TIERRA · 240 TILES",
         boss: "Boss: Rey Marino (Gyojin)",
         desc: ["Fosos de magma ardiente", "Gyojin pulpo, anguila y cangrejo", "Barricadas tácticas de sacos"],
@@ -4251,7 +4422,7 @@
     ctx.fillStyle = "#5cf6ff";
     ctx.font = "bold 26px Courier New";
     ctx.textAlign = "center";
-    ctx.fillText("YAEL — PROTOCOLO BELMONT", VIEW_W / 2, 50);
+    ctx.fillText(PROJECT_TITLE, VIEW_W / 2, 50);
     ctx.fillStyle = "#e0b33a";
     ctx.font = "bold 12px Courier New";
     const selectedAct = Math.floor((menuSelectedLevel - 1) / 5) + 1;
@@ -4445,6 +4616,16 @@
   }
 
   function draw() {
+    if (state === "title") {
+      drawTitleScreen();
+      drawMenuCursor();
+      return;
+    }
+    if (state === "credits") {
+      drawCreditsScreen();
+      drawMenuCursor();
+      return;
+    }
     sky();
     if (state === "menu") {
       drawLevelSelectMenu();
@@ -4531,7 +4712,7 @@
     }
     if (state === "dead") {
       panel("CAIDA EN COMBATE", [
-        "Yael cayo en " + levelName,
+        "La unidad cayó en " + levelName,
         "Reliquias: " + (coins | 0) + "    Bajas: " + kills,
         "",
         "ENTER o R para reintentar desde el ultimo punto de control",
@@ -4539,14 +4720,14 @@
       ]);
     }
     if (state === "win") {
-      panel("¡VICTORIA TOTAL!", [
-        "Protocolo Belmont completado con exito rotundo.",
+      panel("¡DIRECTIVA OMEGA CUMPLIDA!", [
+        "Protocol Omega ha sido completado.",
         "La Nave Nodriza ha sido destruida y la Tierra esta a salvo.",
         "",
         "Reliquias totales: " + (coins | 0) + "    Bajas: " + kills,
         "Vidas restantes: " + lives,
         "",
-        "ENTER o R para reiniciar la campaña",
+        "ENTER, ESPACIO o R para ver los créditos",
       ]);
     }
   }

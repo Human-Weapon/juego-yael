@@ -1,11 +1,13 @@
 {
-  "name": "yael-protocolo-belmont",
+  "name": "protocol-omega",
   "version": "1.0.0",
   "private": true,
-  "description": "Campaña de acción y plataformas de Yael.",
+  "description": "Protocol Omega: campaña de acción y plataformas en navegador.",
   "scripts": {
-    "test": "node test-physics.js && node test-level-variety.js && node test-ai-personality.js && node test-tile-visibility.js && node test-combat-regressions.js && node test-roster-and-hazards.js && node test-arsenal.js && node test-sprite-animation.js && node test-menu-ui.js && py -3 tools/test_run_game_benchmark.py",
-    "check": "node --check game.js && node --check level.js && node --check sprites.js"
+    "test": "node test-physics.js && node test-level-variety.js && node test-ai-personality.js && node test-tile-visibility.js && node test-combat-regressions.js && node test-roster-and-hazards.js && node test-arsenal.js && node test-sprite-animation.js && node test-menu-ui.js && node test-project-identity.js && node tools/verify_integrity.js && node tools/test_run_game_benchmark.js",
+    "check": "node --check game.js && node --check level.js && node --check sprites.js && node --check tools/verify_integrity.js && node --check tools/update_integrity_manifest.js && node --check tools/run_game_benchmark.js",
+    "integrity:update": "node tools/update_integrity_manifest.js",
+    "integrity:verify": "node tools/verify_integrity.js"
   },
   "engines": {
     "node": ">=18"

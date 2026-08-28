@@ -1,4 +1,4 @@
-"""AgentBench target: execute one deterministic Yael verification script."""
+"""AgentBench target: execute one deterministic Protocol Omega verification script."""
 
 from __future__ import annotations
 

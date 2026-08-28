@@ -1,0 +1,22 @@
+{
+  "project": "Protocol Omega",
+  "fingerprint": "PO-HW-2026-OMEGA-7F",
+  "officialRepository": "https://github.com/Human-Weapon/protocol-omega",
+  "license": "PolyForm Noncommercial 1.0.0 with project identity terms",
+  "credits": [
+    {
+      "name": "Jonathan Yael Maldonado Rodríguez",
+      "roles": ["Diseñador de niveles", "Programador"]
+    },
+    {
+      "name": "Abraham Rodríguez Arana",
+      "roles": ["Programador", "Auditor del miniproyecto"]
+    }
+  ],
+  "officialRuntime": {
+    "type": "static-browser-game",
+    "administratorPrivilegesRequired": false,
+    "networkConnectionsRequired": false,
+    "integrityManifest": "integrity-manifest.json"
+  }
+}

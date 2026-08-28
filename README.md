@@ -1,6 +1,8 @@
-# Yael: Protocolo Belmont
+# Protocol Omega
 
 Shooter de plataformas en navegador, con una campaña de 20 niveles, tres personajes y un jefe obligatorio al final de cada misión.
+
+Repositorio oficial: [github.com/Human-Weapon/protocol-omega](https://github.com/Human-Weapon/protocol-omega)
 
 ## Jugar localmente
 
@@ -27,9 +29,7 @@ Luego visita `http://127.0.0.1:8765`.
 
 El Ágil tiene doble salto; el Pesado no salta, pero escala paredes sólidas.
 
-Cada personaje usa un ciclo de carrera de tres poses (la base original más dos
-poses nuevas) para que el desplazamiento se perciba continuo incluso al cambiar
-de dirección.
+Cada personaje usa un ciclo de carrera propio para que el desplazamiento se perciba continuo incluso al cambiar de dirección.
 
 ## Campaña
 
@@ -52,3 +52,15 @@ node test-roster-and-hazards.js
 node test-arsenal.js
 node test-menu-ui.js
 ```
+
+Para verificar que una copia coincide con el manifiesto oficial:
+
+```powershell
+npm run integrity:verify
+```
+
+El manifiesto SHA-256 detecta archivos modificados o ejecutables agregados, pero sólo demuestra procedencia cuando se compara con una copia obtenida del repositorio oficial.
+
+## Licencia y colaboración
+
+El código fuente está disponible para estudiar, modificar y compartir contenido con fines no comerciales. El uso comercial o la venta requieren autorización escrita. Consulta [LICENSE.md](LICENSE.md), [NOTICE.md](NOTICE.md), [SECURITY.md](SECURITY.md) y [CONTRIBUTING.md](CONTRIBUTING.md).
