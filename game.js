@@ -59,7 +59,7 @@
   // supervivencia y Pesado sustituye por completo el salto por escalada.
   const CHARACTERS = [
     { id: "classic", name: "CLÁSICO", title: "CLÁSICO", maxHp: 7, run: 1, acc: 1, airAcc: 1, jump: -12.1, holdGravity: 0.36, gravity: 0.42, maxFall: 11.2, reloadMultiplier: 1, ammoMultiplier: 1, dashSpeed: 12, dashFrames: 8, dashInv: 30, dashCooldown: 42, climb: false, color: "#ffe29a", description: "7 corazones · salto controlado" },
-    { id: "agile", name: "AGIL", title: "SCOUT AGIL", maxHp: 2, run: 2, acc: 2, airAcc: 2, jump: -18, holdGravity: 0.72, gravity: 0.84, maxFall: 22.4, reloadMultiplier: 0.5, damageMultiplier: 0.7, ammoMultiplier: 1, dashSpeed: 15, dashFrames: 9, dashInv: 30, dashCooldown: 45, airJumps: 1, climb: false, color: "#5cf6ff", description: "2 corazones · 2× velocidad · doble salto" },
+    { id: "agile", name: "AGIL", title: "SCOUT AGIL", maxHp: 2, run: 2, acc: 2, airAcc: 2, jump: -18, holdGravity: 0.72, gravity: 0.84, maxFall: 22.4, reloadMultiplier: 1 / 2.6, damageMultiplier: 0.75, ammoMultiplier: 1, dashSpeed: 15, dashFrames: 9, dashInv: 30, dashCooldown: 45, airJumps: 1, climb: false, color: "#5cf6ff", description: "2 corazones · 2× velocidad · doble salto" },
     { id: "heavy", name: "PESADO", title: "ESCALADOR PESADO", maxHp: 16, run: 0.72, acc: 0.78, airAcc: 0.55, jump: 0, holdGravity: 0.4, gravity: 0.45, maxFall: 10, reloadMultiplier: 1, ammoMultiplier: 2, dashSpeed: 19, dashFrames: 26, dashInv: 30, dashCooldown: 150, dashDamage: 42, dashKnockback: 9, climb: true, climbSpeed: 3.1, color: "#ff9f1c", description: "16 corazones · munición doble · escala" },
   ];
 
