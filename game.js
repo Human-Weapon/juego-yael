@@ -452,7 +452,7 @@
       player.x = 18 * TILE;
       player.y = 175 * TILE - PHYS.PLAYER_H;
       risingLavaY = 179 * TILE;
-      risingLavaSpeed = 0.42;
+      risingLavaSpeed = 0.92;
     } else {
       risingLavaY = 999999;
       risingLavaSpeed = 0;
@@ -622,14 +622,8 @@
   function fireWeapon(special) {
     const w = WEAPONS[player.weapon];
     if (player.cool > 0) return;
-    const cost = special ? w.specialAmmo : w.pellets;
-    if (player.ammo[player.weapon] < cost) {
-      sfx.empty();
-      player.cool = 12;
-      return;
-    }
-    player.ammo[player.weapon] -= cost;
-    player.cool = special ? w.cooldown * 1.6 : w.cooldown;
+    player.ammo[player.weapon] = w.maxAmmo;
+    player.cool = special ? w.cooldown * 1.5 : w.cooldown;
     const g = gunPos();
     const m = mouseWorld();
     const base = angTo(g.x, g.y, m.x, m.y);
@@ -683,10 +677,12 @@
     seaking: { name: "Rey Marino", hp: 200, w: 72, h: 40, speed: 0.6, dmg: 2, score: 2000, spit: true, boss: true },
     radstar: { name: "Estrella Radiactiva", hp: 30, w: 44, h: 44, speed: 1.8, dmg: 1, score: 350, flying: true, greenFire: true },
     radboss: { name: "Titan Radiactivo", hp: 950, w: 116, h: 96, speed: 0.8, dmg: 2, score: 6500, boss: true, heavy: true },
+    alien_ship: { name: "Nave Nodriza Alienigena", hp: 1200, w: 128, h: 64, speed: 2.2, dmg: 2, score: 9000, boss: true, flying: true },
   };
 
   function spawnEnemy(type, x, y) {
     const d = ENEMY_TYPES[type];
+    if (!d) return;
     const isFlying = !!d.flying;
     enemies.push({
       type,
@@ -712,7 +708,7 @@
       flash: 0,
     });
     if (isFlying) {
-      burst(x, y, "#39ff14", 10);
+      burst(x, y, type === "alien_ship" ? "#5cf6ff" : "#39ff14", 12);
     } else {
       sfx.emerge();
       burst(x, y, "#ff6b00", 14);
@@ -746,12 +742,16 @@
     en.dead = true;
     en.t = 0;
     kills++;
-    coins += ENEMY_TYPES[en.type].score / 10;
+    coins += (ENEMY_TYPES[en.type] ? ENEMY_TYPES[en.type].score : 200) / 10;
     sfx.kill();
-    const col = en.type === "radstar" ? "#39ff14" : (en.type === "radboss" ? "#ff7b00" : "#7bed9f");
-    burst(en.x + en.w / 2, en.y + en.h / 2, col, en.type === "radboss" ? 36 : 16);
-    if (Math.random() < 0.65 || ENEMY_TYPES[en.type].boss) {
-      const dropCount = ENEMY_TYPES[en.type].boss ? 3 : 1;
+    const col = en.type === "radstar" ? "#39ff14" : (en.type === "radboss" ? "#ff7b00" : (en.type === "alien_ship" ? "#5cf6ff" : "#7bed9f"));
+    burst(en.x + en.w / 2, en.y + en.h / 2, col, en.type === "radboss" ? 36 : (en.type === "alien_ship" ? 50 : 16));
+    if (en.type === "alien_ship") {
+      floatText(en.x + en.w / 2, en.y - 20, "¡NAVE NODRIZA DESTRUIDA! ¡ESCAPA POR EL PORTAL!", "#5cf6ff");
+      shake = 22;
+    }
+    if (Math.random() < 0.65 || (ENEMY_TYPES[en.type] && ENEMY_TYPES[en.type].boss)) {
+      const dropCount = ENEMY_TYPES[en.type] && ENEMY_TYPES[en.type].boss ? 4 : 1;
       for (let i = 0; i < dropCount; i++) {
         pickups.push({
           x: en.x + en.w / 2 + (i - 1) * 16,
@@ -929,8 +929,14 @@
       }
     }
 
-    for (const t of tilesTouching(bodyBox(p))) {
-      if (t.id === T.DOOR && !p.dead) {
+    const touchingDoor = tilesTouching(bodyBox(p)).some((t) => t.id === T.DOOR) ||
+      (Math.abs(p.x + p.w / 2 - doorX) < 48 && Math.abs(p.y + p.h / 2 - (doorY || 19 * TILE)) < 60);
+
+    if (touchingDoor && !p.dead) {
+      const activeBoss = enemies.find((e) => !e.dead && ENEMY_TYPES[e.type] && ENEMY_TYPES[e.type].boss);
+      if (currentLevel === 3 && activeBoss) {
+        if (time % 60 === 0) floatText(p.x, p.y - 30, "¡DESTRUYE A LA NAVE ALIENIGENA!", "#ef233c");
+      } else {
         if (currentLevel === 1) {
           state = "level_clear";
           winT = 0;
@@ -1945,7 +1951,7 @@
     ctx.fillStyle = "#8b9bb4";
     ctx.fillText("VIDAS " + lives, 180, 54);
     ctx.fillStyle = w.accent;
-    ctx.fillText(w.short + "  " + p.ammo[p.weapon] + "/" + w.maxAmmo, 24, 76);
+    ctx.fillText(w.short + "  ∞ (ILIMITADA)", 24, 76);
 
     if (p.stunTimer > 0) {
       ctx.fillStyle = "#ffe600";

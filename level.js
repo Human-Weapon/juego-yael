@@ -420,16 +420,23 @@
     boss: { tileX: 18, tileY: 18, type: "alien_ship", label: "NAVE ALIENIGENA" },
     towerEnemies: [
       { tileX: 12, tileY: 175, type: "shark" },
+      { tileX: 20, tileY: 170, type: "radstar" },
       { tileX: 20, tileY: 165, type: "crab" },
+      { tileX: 10, tileY: 154, type: "radstar" },
       { tileX: 22, tileY: 153, type: "octopus" },
       { tileX: 15, tileY: 141, type: "eel" },
+      { tileX: 26, tileY: 138, type: "radstar" },
       { tileX: 8, tileY: 129, type: "shark" },
       { tileX: 28, tileY: 129, type: "octopus" },
+      { tileX: 12, tileY: 122, type: "radstar" },
       { tileX: 18, tileY: 112, type: "radstar" },
       { tileX: 20, tileY: 103, type: "crab" },
+      { tileX: 8, tileY: 96, type: "radstar" },
       { tileX: 12, tileY: 84, type: "radstar" },
       { tileX: 24, tileY: 70, type: "radstar" },
       { tileX: 16, tileY: 61, type: "shark" },
+      { tileX: 14, tileY: 52, type: "radstar" },
+      { tileX: 26, tileY: 36, type: "radstar" },
     ],
   };
 
@@ -531,16 +538,20 @@
     for (let i = 0; i < 6; i++) {
       tiles[26][6 + i] = T.PLATFORM;
       tiles[26][23 + i] = T.PLATFORM;
-      tiles[22][15 + i] = T.PLATFORM;
+    }
+    for (let i = 0; i < 8; i++) {
+      tiles[25][14 + i] = T.PLATFORM;
+      tiles[22][14 + i] = T.PLATFORM;
+      tiles[21][14 + i] = T.PLATFORM; // Escalón directo bajo la puerta
     }
 
-    // Torreta de control y Puerta de escape en la azotea (y: 12..20, x: 16..20)
-    for (let y = 14; y <= 21; y++) {
+    // Portal / Castillo de escape en la azotea (y: 15..20, x: 15..20)
+    for (let y = 15; y <= 18; y++) {
       tiles[y][15] = T.CASTLE;
       tiles[y][20] = T.CASTLE;
     }
     for (let x = 15; x <= 20; x++) {
-      tiles[14][x] = T.CASTLE;
+      tiles[15][x] = T.CASTLE;
     }
     tiles[20][17] = T.DOOR;
     tiles[20][18] = T.DOOR;
