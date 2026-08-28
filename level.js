@@ -39,59 +39,63 @@
     CRATE: 14,
   };
 
-  const WORLD_W = 148;
+  const WORLD_W = 240;
   const WORLD_H = 16;
   const GROUND_Y = WORLD_H - 3;
 
   const ZONES = [
-    { id: "calle", name: "CALLE", x0: 0, x1: 16 },
-    { id: "puente1", name: "PUENTE", x0: 16, x1: 24 },
-    { id: "arrabal", name: "ARRABAL", x0: 24, x1: 38 },
-    { id: "plaza", name: "PLAZA", x0: 38, x1: 56 },
-    { id: "puente2", name: "PUENTE ROTO", x0: 56, x1: 64 },
-    { id: "base", name: "BASE", x0: 64, x1: 88 },
-    { id: "viaducto", name: "VIADUCTO", x0: 88, x1: 100 },
-    { id: "puesto", name: "PUESTO", x0: 100, x1: 108 },
-    { id: "campo", name: "CAMPO DE BATALLA", x0: 108, x1: 132 },
-    { id: "fortaleza", name: "FORTALEZA", x0: 132, x1: 148 },
+    { id: "calle", name: "CALLE PRINCIPAL", x0: 0, x1: 20 },
+    { id: "puente1", name: "PUENTE DE MAGMA", x0: 20, x1: 36 },
+    { id: "arrabal", name: "ARRABAL BAJO", x0: 36, x1: 56 },
+    { id: "plaza", name: "PLAZA DE LAS RELIQUIAS", x0: 56, x1: 78 },
+    { id: "foso_coliseo", name: "FOSO DEL COLISEO", x0: 78, x1: 98 },
+    { id: "coliseo", name: "COLISEO DE LAVA", x0: 98, x1: 120 },
+    { id: "bastion", name: "BASTION DE CENIZA", x0: 120, x1: 144 },
+    { id: "viaducto", name: "GRAN VIADUCTO", x0: 144, x1: 166 },
+    { id: "puesto", name: "PUESTO AVANZADO", x0: 166, x1: 188 },
+    { id: "campamento", name: "CAMPAMENTO DE GYOJINS", x0: 188, x1: 210 },
+    { id: "arena_rey", name: "ARENA DEL REY MARINO", x0: 210, x1: 228 },
+    { id: "fortaleza", name: "PORTAL DEL CASTILLO", x0: 228, x1: 240 },
   ];
 
   const SPAWNS = {
-    comun: { tileX: 47, tileY: GROUND_Y, label: "COMUN" },
-    boss: { tileX: 120, tileY: GROUND_Y, label: "BOSS" },
+    comun: { tileX: 48, tileY: GROUND_Y, label: "COMUN" },
+    boss: { tileX: 218, tileY: GROUND_Y, label: "BOSS" },
   };
 
   const LAVA_PITS = [
-    [16, 22],
-    [56, 62],
-    [79, 86],
-    [90, 97],
-    [102, 107],
+    [20, 32],
+    [56, 68],
+    [80, 94],
+    [144, 158],
+    [188, 202],
   ];
 
   const BRIDGES = [
-    { x: 16, w: 6 },
-    { x: 56, w: 6 },
-    { x: 79, w: 3 },
-    { x: 84, w: 2 },
-    { x: 90, w: 2 },
-    { x: 95, w: 2 },
-    { x: 102, w: 5 },
+    { x: 20, w: 5 },
+    { x: 56, w: 5 },
+    { x: 80, w: 4 },
+    { x: 90, w: 4 },
+    { x: 144, w: 5 },
+    { x: 153, w: 5 },
+    { x: 188, w: 5 },
   ];
 
   const BUILDINGS = [
-    { x: 8, w: 4, h: 1 },
-    { x: 25, w: 7, h: 2 },
-    { x: 39, w: 4, h: 1 },
-    { x: 52, w: 4, h: 1 },
-    { x: 64, w: 3, h: 1 },
-    { x: 67, w: 4, h: 2 },
-    { x: 71, w: 6, h: 3 },
-    { x: 111, w: 4, h: 1 },
-    { x: 125, w: 4, h: 1 },
+    { x: 10, w: 4, h: 1 },
+    { x: 38, w: 6, h: 2 },
+    { x: 48, w: 4, h: 1 },
+    { x: 70, w: 6, h: 2 },
+    { x: 100, w: 5, h: 2 },
+    { x: 108, w: 8, h: 3 },
+    { x: 126, w: 6, h: 2 },
+    { x: 136, w: 5, h: 2 },
+    { x: 170, w: 6, h: 2 },
+    { x: 180, w: 5, h: 1 },
+    { x: 204, w: 5, h: 2 },
   ];
 
-  const SANDBAGS = [5, 44, 99, 116];
+  const SANDBAGS = [6, 36, 52, 76, 96, 122, 140, 166, 184, 202, 212];
 
   function inLava(x) {
     return LAVA_PITS.some(([a, b]) => x >= a && x < b);
@@ -168,22 +172,6 @@
       }
     }
 
-    for (let x = 0; x < 16; x++) {
-      tiles[WORLD_H - 1][x] = T.DIRT;
-      tiles[WORLD_H - 2][x] = T.DIRT;
-      tiles[GROUND_Y][x] = T.GRASS;
-    }
-    for (let x = 38; x < 56; x++) {
-      tiles[WORLD_H - 1][x] = T.DIRT;
-      tiles[WORLD_H - 2][x] = T.DIRT;
-      tiles[GROUND_Y][x] = T.GRASS;
-    }
-    for (let x = 108; x < WORLD_W; x++) {
-      tiles[WORLD_H - 1][x] = T.DIRT;
-      tiles[WORLD_H - 2][x] = T.DIRT;
-      tiles[GROUND_Y][x] = T.GRASS;
-    }
-
     for (const b of BRIDGES) {
       for (let i = 0; i < b.w; i++) put(tiles, b.x + i, GROUND_Y, T.BRIDGE);
     }
@@ -200,15 +188,39 @@
       put(tiles, x + 1, GROUND_Y - 1, T.PIPE_TOP);
     }
 
-    put(tiles, 29, GROUND_Y - 3, T.PLATFORM);
-    put(tiles, 30, GROUND_Y - 3, T.PLATFORM);
-    put(tiles, 31, GROUND_Y - 3, T.PLATFORM);
-    put(tiles, 72, GROUND_Y - 4, T.PLATFORM);
-    put(tiles, 73, GROUND_Y - 4, T.PLATFORM);
-    put(tiles, 74, GROUND_Y - 4, T.PLATFORM);
-    put(tiles, 75, GROUND_Y - 4, T.PLATFORM);
+    // Plataformas flotantes en fosos
+    put(tiles, 27, GROUND_Y - 2, T.PLATFORM);
+    put(tiles, 28, GROUND_Y - 2, T.PLATFORM);
+    put(tiles, 29, GROUND_Y - 2, T.PLATFORM);
 
-    const cx = WORLD_W - 16;
+    put(tiles, 63, GROUND_Y - 2, T.PLATFORM);
+    put(tiles, 64, GROUND_Y - 2, T.PLATFORM);
+    put(tiles, 65, GROUND_Y - 2, T.PLATFORM);
+
+    put(tiles, 85, GROUND_Y - 3, T.PLATFORM);
+    put(tiles, 86, GROUND_Y - 3, T.PLATFORM);
+    put(tiles, 87, GROUND_Y - 3, T.PLATFORM);
+
+    put(tiles, 110, GROUND_Y - 4, T.PLATFORM);
+    put(tiles, 111, GROUND_Y - 4, T.PLATFORM);
+    put(tiles, 112, GROUND_Y - 4, T.PLATFORM);
+    put(tiles, 113, GROUND_Y - 4, T.PLATFORM);
+
+    put(tiles, 149, GROUND_Y - 2, T.PLATFORM);
+    put(tiles, 150, GROUND_Y - 2, T.PLATFORM);
+    put(tiles, 151, GROUND_Y - 2, T.PLATFORM);
+
+    put(tiles, 194, GROUND_Y - 2, T.PLATFORM);
+    put(tiles, 195, GROUND_Y - 2, T.PLATFORM);
+    put(tiles, 196, GROUND_Y - 2, T.PLATFORM);
+
+    put(tiles, 213, GROUND_Y - 3, T.PLATFORM);
+    put(tiles, 214, GROUND_Y - 3, T.PLATFORM);
+    put(tiles, 222, GROUND_Y - 3, T.PLATFORM);
+    put(tiles, 223, GROUND_Y - 3, T.PLATFORM);
+
+    // Castillo / Portal final
+    const cx = WORLD_W - 12;
     for (let y = 5; y <= 10; y++) {
       tiles[y][cx] = T.CASTLE;
       tiles[y][cx + 11] = T.CASTLE;
@@ -229,10 +241,12 @@
     tiles[GROUND_Y - 2][cx + 6] = T.DOOR;
 
     const lavaSpawns = [
-      { x: 27 * TILE, y: (GROUND_Y + 1) * TILE, t: 40 },
-      { x: 65 * TILE, y: (GROUND_Y + 1) * TILE, t: 60 },
-      { x: 82 * TILE, y: (GROUND_Y + 1) * TILE, t: 75 },
-      { x: 98 * TILE, y: (GROUND_Y + 1) * TILE, t: 90 },
+      { x: 26 * TILE, y: (GROUND_Y + 1) * TILE, t: 40 },
+      { x: 62 * TILE, y: (GROUND_Y + 1) * TILE, t: 60 },
+      { x: 86 * TILE, y: (GROUND_Y + 1) * TILE, t: 75 },
+      { x: 110 * TILE, y: (GROUND_Y + 1) * TILE, t: 90 },
+      { x: 150 * TILE, y: (GROUND_Y + 1) * TILE, t: 105 },
+      { x: 195 * TILE, y: (GROUND_Y + 1) * TILE, t: 120 },
     ];
 
     return {
