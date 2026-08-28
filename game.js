@@ -463,9 +463,7 @@
     particles = [];
     pickups = [];
     floating = [];
-    if (currentLevel === 1) {
-      coins = 0;
-      kills = 0;
+    if (lives <= 0 || state === "menu" || currentLevel === 1) {
       lives = 4;
     }
     winT = 0;
@@ -783,27 +781,55 @@
     return !!(keys.w || keys.arrowup || keys[" "]);
   }
 
+  function respawnPlayer() {
+    const p = player;
+    p.dead = false;
+    p.hp = p.maxHp;
+    p.h = PHYS.PLAYER_H;
+    p.crouch = false;
+    p.vx = 0;
+    p.vy = 0;
+    p.inv = 160;
+    p.inLava = false;
+    p.trapped = false;
+    p.stunTimer = 0;
+
+    if (currentLevel === 3) {
+      // Encontrar el piso seguro más cercano a donde murió el jugador
+      const towerFloors = [30, 48, 62, 76, 90, 104, 118, 130, 142, 154, 166, 175];
+      const targetY = Math.floor(p.y / TILE);
+      let bestFloor = 175;
+      for (const fy of towerFloors) {
+        if (fy >= targetY) {
+          bestFloor = fy;
+          break;
+        }
+      }
+      p.x = 18 * TILE;
+      p.y = bestFloor * TILE - PHYS.PLAYER_H;
+      // Retrasar la lava para que quede siempre al menos 8 tiles por debajo del jugador
+      risingLavaY = Math.max(risingLavaY, (bestFloor + 8) * TILE);
+    } else {
+      let rx = Math.max(3, Math.floor((cam.x + 40) / TILE));
+      while (rx > 2 && tileAt(rx, groundY) !== T.GRASS) rx--;
+      p.x = rx * TILE;
+      p.y = groundY * TILE - PHYS.PLAYER_H;
+    }
+    snapCam();
+  }
+
   function updatePlayer() {
     const p = player;
     if (p.dead) {
       p.t++;
       p.vy += PHYS.GRAVITY * 0.5;
       p.y += p.vy;
-      if (p.t > 90) {
+      if (p.t > 70) {
         if (lives > 0) {
-          p.dead = false;
-          p.hp = p.maxHp;
-          let rx = Math.max(3, Math.floor((cam.x + 40) / TILE));
-          while (rx > 2 && tileAt(rx, groundY) !== T.GRASS) rx--;
-          p.x = rx * TILE;
-          p.y = groundY * TILE - PHYS.PLAYER_H;
-          p.h = PHYS.PLAYER_H;
-          p.crouch = false;
-          p.vx = 0;
-          p.vy = 0;
-          p.inv = 130;
-          snapCam();
-        } else state = "dead";
+          respawnPlayer();
+        } else {
+          state = "dead";
+        }
       }
       return;
     }
