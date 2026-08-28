@@ -27,6 +27,10 @@ Luego visita `http://127.0.0.1:8765`.
 
 El Ágil tiene doble salto; el Pesado no salta, pero escala paredes sólidas.
 
+Cada personaje usa un ciclo de carrera de tres poses (la base original más dos
+poses nuevas) para que el desplazamiento se perciba continuo incluso al cambiar
+de dirección.
+
 ## Campaña
 
 - Cada nivel exige vencer a su jefe antes de abrir el portal.

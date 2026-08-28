@@ -650,7 +650,56 @@ kwwwwww9ffffccccccccccccccccffff9wwwwwwk
     // Los atlas son arte de imagen creado para el juego. Cada celda se copia
     // a su propio canvas, por lo que el render mantiene el pixelado nítido y
     // no depende de composiciones geométricas durante la partida.
-    function atlasFrames(path, cols, rows, names, frameW, frameH) {
+    //
+    // Algunas herramientas de arte entregan un fondo de referencia claro en
+    // vez de alpha real. En los atlas que lo solicitan quitamos sólo el fondo
+    // conectado al borde: así se conservan los brillos blancos encerrados en
+    // la armadura y el sprite sigue siendo transparente en el mapa.
+    function removeConnectedLightBackground(canvas) {
+      const g = canvas.getContext("2d");
+      const image = g.getImageData(0, 0, canvas.width, canvas.height);
+      const data = image.data;
+      const width = image.width;
+      const height = image.height;
+      const seen = new Uint8Array(width * height);
+      const queue = [];
+      const isBackground = (index) => {
+        const r = data[index * 4];
+        const green = data[index * 4 + 1];
+        const b = data[index * 4 + 2];
+        const a = data[index * 4 + 3];
+        return a > 0 && r > 220 && green > 220 && b > 220 && Math.max(r, green, b) - Math.min(r, green, b) < 24;
+      };
+      const enqueue = (x, y) => {
+        if (x < 0 || y < 0 || x >= width || y >= height) return;
+        const index = y * width + x;
+        if (!seen[index] && isBackground(index)) {
+          seen[index] = 1;
+          queue.push(index);
+        }
+      };
+      for (let x = 0; x < width; x++) {
+        enqueue(x, 0);
+        enqueue(x, height - 1);
+      }
+      for (let y = 1; y < height - 1; y++) {
+        enqueue(0, y);
+        enqueue(width - 1, y);
+      }
+      for (let head = 0; head < queue.length; head++) {
+        const index = queue[head];
+        const x = index % width;
+        const y = Math.floor(index / width);
+        enqueue(x - 1, y);
+        enqueue(x + 1, y);
+        enqueue(x, y - 1);
+        enqueue(x, y + 1);
+      }
+      for (const index of queue) data[index * 4 + 3] = 0;
+      g.putImageData(image, 0, 0);
+    }
+
+    function atlasFrames(path, cols, rows, names, frameW, frameH, options) {
       const frames = {};
       const sheet = document.createElement("img");
       const targets = names.map((name) => {
@@ -695,6 +744,11 @@ kwwwwww9ffffccccccccccccccccffff9wwwwwwk
           paint(target.frame, 0, 1, false);
           paint(target.walk, 2, 0.965, false);
           paint(target.action, -1, 1.04, true);
+          if (options && options.transparentBackground) {
+            removeConnectedLightBackground(target.frame);
+            removeConnectedLightBackground(target.walk);
+            removeConnectedLightBackground(target.action);
+          }
         });
       };
       sheet.src = path;
@@ -714,6 +768,11 @@ kwwwwww9ffffccccccccccccccccffff9wwwwwwk
       "agile_idle", "agile_run", "agile_jump", "agile_fire",
       "heavy_idle", "heavy_run", "heavy_climb", "heavy_fire",
     ], 48, 60);
+    const heroRunArt = atlasFrames("assets/sprites/heroes-run-frames-v2.png", 2, 3, [
+      "classic_run_extra1", "classic_run_extra2",
+      "agile_run_extra1", "agile_run_extra2",
+      "heavy_run_extra1", "heavy_run_extra2",
+    ], 48, 60, { transparentBackground: true });
     const seakingArt = atlasFrames("assets/sprites/seaking-frames-v1.png", 4, 1, ["idle", "walk", "shoot", "attack"], 144, 104);
     const scenery = atlasFrames("assets/sprites/scenery-atlas-v1.png", 3, 2, ["ruin", "barricade", "tree", "train", "bunker", "arch"], 156, 116);
     const gelArt = atlasFrames("assets/sprites/inertia-gel-frames-v1.png", 3, 1, ["blob", "puddle", "ripple"], 82, 34);
@@ -724,9 +783,9 @@ kwwwwww9ffffccccccccccccccccffff9wwwwwwk
       campaignSprites[type] = { idle: artSet[type], walk: artSet[type + "__walk"], shoot: artSet[type + "__action"] };
     }
     const heroes = {
-      classic: { idle: heroArt.classic_idle, run1: heroArt.classic_run, run2: heroArt.classic_run__walk, jump: heroArt.classic_jump, crouch: heroArt.classic_idle__walk, fire: heroArt.classic_fire },
-      agile: { idle: heroArt.agile_idle, run1: heroArt.agile_run, run2: heroArt.agile_run__walk, jump: heroArt.agile_jump, crouch: heroArt.agile_idle__walk, fire: heroArt.agile_fire },
-      heavy: { idle: heroArt.heavy_idle, run1: heroArt.heavy_run, run2: heroArt.heavy_run__walk, jump: heroArt.heavy_climb, crouch: heroArt.heavy_idle__walk, fire: heroArt.heavy_fire, climb: heroArt.heavy_climb },
+      classic: { idle: heroArt.classic_idle, run1: heroArt.classic_run, run2: heroRunArt.classic_run_extra1, run3: heroRunArt.classic_run_extra2, runFrames: [heroArt.classic_run, heroRunArt.classic_run_extra1, heroRunArt.classic_run_extra2], jump: heroArt.classic_jump, crouch: heroArt.classic_idle__walk, fire: heroArt.classic_fire },
+      agile: { idle: heroArt.agile_idle, run1: heroArt.agile_run, run2: heroRunArt.agile_run_extra1, run3: heroRunArt.agile_run_extra2, runFrames: [heroArt.agile_run, heroRunArt.agile_run_extra1, heroRunArt.agile_run_extra2], jump: heroArt.agile_jump, crouch: heroArt.agile_idle__walk, fire: heroArt.agile_fire },
+      heavy: { idle: heroArt.heavy_idle, run1: heroArt.heavy_run, run2: heroRunArt.heavy_run_extra1, run3: heroRunArt.heavy_run_extra2, runFrames: [heroArt.heavy_run, heroRunArt.heavy_run_extra1, heroRunArt.heavy_run_extra2], jump: heroArt.heavy_climb, crouch: heroArt.heavy_idle__walk, fire: heroArt.heavy_fire, climb: heroArt.heavy_climb },
     };
     Object.assign(seaking, { idle: seakingArt.idle, walk: seakingArt.walk, shoot: seakingArt.shoot, attack: seakingArt.attack });
     Object.assign(guns, weaponArt);

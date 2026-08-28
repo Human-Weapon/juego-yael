@@ -48,6 +48,19 @@ const instrumented = source.replace(marker, `  requestAnimationFrame(loop);
       bullets.push({x:86,y:target.y+target.h/2,vx:52,vy:0,r:9,dmg:95,life:12,owner:"player",plasma:false,pierce:0,explode:0,color:"#ffe066",hit:[]});
       updateBullets();
       return {before,after:target.hp,damage:before-target.hp};
+    },
+    weaponMuzzleProbe() {
+      highestUnlockedLevel=CAMPAIGN.length; startGame(1); enemies=[]; bullets=[];
+      mouse.x=VIEW_W-40; mouse.y=player.y-cam.y+14;
+      const results=[];
+      for (let i=0;i<WEAPONS.length;i++) {
+        player.weapon=i; player.cool=0; player.reloading=false; player.overheated=false; player.heat=0;
+        player.ammo[i]=Number.isFinite(WEAPONS[i].magazine) ? WEAPONS[i].magazine : Infinity;
+        const anchor=gunPos(); fireWeapon();
+        const bullet=bullets[bullets.length-1];
+        results.push({id:WEAPONS[i].id,offset:bullet ? Math.hypot(bullet.x-anchor.x,bullet.y-anchor.y) : 0});
+      }
+      return results;
     }
   };
 })();`);
@@ -76,6 +89,9 @@ check(shield.shots>0,"el guardia de escudo responde con un ataque a distancia",J
 
 const cannon=api.cannonSweepProbe();
 check(cannon.damage===95,"el Titán registra impactos aunque cruce una hitbox en un fotograma",JSON.stringify(cannon));
+
+const muzzle=api.weaponMuzzleProbe();
+check(muzzle.length===6 && muzzle.every((shot)=>shot.offset>30),"cada arma nace en la boca visible de su sprite",JSON.stringify(muzzle));
 
 if(failures){console.error(`\nCOMBAT REGRESSION CHECK FAILED: ${failures} problema(s)`);process.exitCode=1;}
 else console.log("\nCOMBAT REGRESSION CHECK PASSED");

@@ -16,33 +16,33 @@
     {
       id: "desert", name: "PISTOLA DESERT", short: "DESERT", color: "#9a7b37", accent: "#ffe29a",
       dmg: 24, speed: 20, spread: 0.012, cooldown: 19, magazine: 12, reload: 62, automatic: false,
-      pellets: 1,
+      pellets: 1, muzzle: 62,
       r: 4, kick: 1.25,
     },
     {
       id: "smg", name: "SUBFUSIL", short: "VIBORA", color: "#34515e", accent: "#86d7f1",
       dmg: 9, speed: 18, spread: 0.075, cooldown: 4, magazine: 24, reload: 84, automatic: true,
-      pellets: 1, r: 3, kick: 0.18, falloff: { start: 150, end: 650, min: 0.32 },
+      pellets: 1, muzzle: 64, r: 3, kick: 0.18, falloff: { start: 150, end: 650, min: 0.32 },
     },
     {
       id: "plasma", name: "FUSIL DE PLASMA", short: "PLASMA", color: "#6927a8", accent: "#e0aaff",
       dmg: 15, speed: 13, spread: 0.025, cooldown: 7, magazine: 30, reload: 154, automatic: true,
-      pellets: 1, r: 5, kick: 0.28, plasma: true,
+      pellets: 1, muzzle: 64, r: 5, kick: 0.28, plasma: true,
     },
     {
       id: "fire_shotgun", name: "ESCOPETA DE FUEGO", short: "INFERNO", color: "#7b2611", accent: "#ff8c42",
       dmg: 30, speed: 13, spread: 0.25, cooldown: 42, magazine: 6, reload: 182, automatic: false,
-      pellets: 8, r: 3, kick: 2.3, rangeLife: 18, fire: true,
+      pellets: 8, muzzle: 62, r: 3, kick: 2.3, rangeLife: 18, fire: true,
     },
     {
       id: "cannon", name: "CAÑON", short: "TITAN", color: "#3b4148", accent: "#ffe066",
       dmg: 95, speed: 10, spread: 0.004, cooldown: 58, magazine: 1, reload: 265, automatic: false,
-      pellets: 1, r: 9, kick: 3.4, explode: 68,
+      pellets: 1, muzzle: 64, r: 9, kick: 3.4, explode: 68,
     },
     {
       id: "minigun", name: "MINIGUN", short: "TORMENTA", color: "#394852", accent: "#f2f4f3",
       dmg: 6, speed: 19, spread: 0.105, cooldown: 2, magazine: Infinity, reload: 0, automatic: true,
-      pellets: 1, r: 2.6, kick: 0.12, heatPerShot: 3.4, coolRate: 0.42,
+      pellets: 1, muzzle: 66, r: 2.6, kick: 0.12, heatPerShot: 3.4, coolRate: 0.42,
     },
   ];
 
@@ -343,8 +343,11 @@
 
   window.addEventListener("keydown", (e) => {
     const k = e.key.toLowerCase();
+    const code = (e.code || "").toLowerCase();
+    const isSpace = k === " " || k === "space" || code === "space";
     keys[k] = true;
-    if (["arrowup", "arrowdown", "arrowleft", "arrowright", " ", "w", "a", "s", "d"].includes(k)) e.preventDefault();
+    if (isSpace) keys.space = true;
+    if (isSpace || ["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d"].includes(k)) e.preventDefault();
 
     if (state === "menu") {
       // A/D recorren páginas completas. Las flechas horizontales siguen
@@ -424,7 +427,9 @@
     if (k === "r" && (state === "dead" || state === "win" || state.startsWith("level_clear"))) startGame(currentLevel);
   });
   window.addEventListener("keyup", (e) => {
-    keys[e.key.toLowerCase()] = false;
+    const k = e.key.toLowerCase();
+    keys[k] = false;
+    if (k === " " || k === "space" || (e.code || "").toLowerCase() === "space") keys.space = false;
   });
 
   function menuLevelAt(x, y) {
@@ -823,9 +828,20 @@
     return { x: b.x + b.w / 2, y: b.y + (player.crouch ? 10 : 14) };
   }
 
+  // `gunPos` is the hand/stock anchor used to draw the weapon. Projectiles
+  // must start at the visible muzzle, otherwise a close enemy can be missed
+  // even though the sprite is already touching it (and shots appear to pass
+  // through the weapon). Keeping the offset in each weapon definition makes
+  // the collision origin explicit and stable when an atlas frame changes.
+  function weaponMuzzlePos(origin, angle) {
+    const weapon = WEAPONS[player.weapon];
+    const offset = weapon && Number.isFinite(weapon.muzzle) ? weapon.muzzle : 54;
+    return { x: origin.x + Math.cos(angle) * offset, y: origin.y + Math.sin(angle) * offset };
+  }
+
   function spawnBullet(x, y, ang, extra) {
     const w = WEAPONS[player.weapon];
-    bullets.push({
+    const bullet = {
       x,
       y,
       prevX: x,
@@ -845,7 +861,9 @@
       orangeFire: extra.orangeFire || w.fire || false,
       color: extra.color || (w.plasma ? "#c77dff" : "#fff3bf"),
       hit: [],
-    });
+    };
+    bullets.push(bullet);
+    return bullet;
   }
 
   function fireWeapon() {
@@ -867,17 +885,25 @@
     const g = gunPos();
     const m = mouseWorld();
     const base = angTo(g.x, g.y, m.x, m.y);
+    const muzzle = weaponMuzzlePos(g, base);
     shake = Math.max(shake, w.kick * 3);
     for (let i = 0; i < w.pellets; i++) {
-      spawnBullet(g.x, g.y, base + rand(-w.spread, w.spread), {
+      const shotAngle = base + rand(-w.spread, w.spread);
+      const shotMuzzle = weaponMuzzlePos(g, shotAngle);
+      const shot = spawnBullet(shotMuzzle.x, shotMuzzle.y, shotAngle, {
         life: w.rangeLife || (w.id === "cannon" ? 80 : 55),
         explode: w.explode || 0,
         color: w.fire ? (i % 2 ? "#ff3c00" : "#ffba08") : undefined,
         orangeFire: !!w.fire,
       });
+      // El primer tramo cubre también el cuerpo del arma. Esto evita que un
+      // enemigo pegado al jugador quede detrás de la boca y parezca atravesado
+      // por el disparo, sin mover el origen visual ni el cálculo de alcance.
+      shot.prevX = g.x;
+      shot.prevY = g.y;
     }
     sfx.shoot(w);
-    burst(g.x + Math.cos(base) * 18, g.y + Math.sin(base) * 18, w.accent, w.id === "cannon" ? 14 : 5);
+    burst(muzzle.x, muzzle.y, w.accent, w.id === "cannon" ? 14 : 5);
     player.vx -= Math.cos(base) * w.kick * 0.3;
     if (Number.isFinite(w.magazine) && player.ammo[player.weapon] <= 0) beginReload();
   }
@@ -903,8 +929,9 @@
       return;
     }
     const speed = s.hook ? 13 : 8.2;
+    const launch = weaponMuzzlePos(g, aim);
     gadgets.push({
-      type: s.id, x: g.x, y: g.y, vx: Math.cos(aim) * speed, vy: Math.sin(aim) * speed - (s.hook ? 0 : 1.8),
+      type: s.id, x: launch.x, y: launch.y, vx: Math.cos(aim) * speed, vy: Math.sin(aim) * speed - (s.hook ? 0 : 1.8),
       r: s.hook ? 6 : 9, life: s.hook ? 170 : (s.fuse || 360), fuse: s.fuse || 0,
       gravity: s.gravity || 0, bounce: s.bounce || 0, dmg: s.dmg || 0, explode: s.explode || 0,
       sticky: !!s.sticky, hook: !!s.hook, gel: !!s.gel, puddleRadius: s.puddleRadius || 34, color: s.color, state: "flying", target: null,
@@ -1351,7 +1378,7 @@
   }
 
   function holdingJump() {
-    return !!(keys.w || keys.arrowup || keys[" "]);
+    return !!(keys.w || keys.arrowup || keys[" "] || keys.space);
   }
 
   function respawnPlayer() {
@@ -3223,7 +3250,10 @@
     else if (p.crouch) frame = hero.crouch;
     else if (!p.onGround) frame = hero.jump;
     else if (mouse.left && hero.fire) frame = hero.fire;
-    else if (Math.abs(p.vx) > 0.5) frame = Math.floor(p.anim) % 2 === 0 ? hero.run1 : hero.run2;
+    else if (Math.abs(p.vx) > 0.5) {
+      const runFrames = hero.runFrames || [hero.run1, hero.run2].filter(Boolean);
+      frame = runFrames.length ? runFrames[Math.floor(p.anim) % runFrames.length] : hero.idle;
+    }
 
     ctx.save();
     if (p.dead) {

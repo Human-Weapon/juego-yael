@@ -63,6 +63,7 @@ check(a.WEAPONS.length === 6, "hay exactamente seis armas principales");
 check(a.SPECIALS.length === 5, "hay exactamente cinco especiales");
 check(a.WEAPONS.map((w) => w.magazine).slice(0,5).join(",") === "12,24,30,6,1", "los cinco cargadores coinciden con la especificación");
 check(a.WEAPONS[5].heatPerShot > 0 && !Number.isFinite(a.WEAPONS[5].magazine), "la minigun usa calor en vez de cargador");
+check(a.WEAPONS.every((w) => w.muzzle >= 50), "cada arma declara una boca de fuego alineada con su sprite");
 check(a.WEAPONS[0].reload < a.WEAPONS[1].reload && a.WEAPONS[1].reload < a.WEAPONS[2].reload && a.WEAPONS[2].reload < a.WEAPONS[3].reload && a.WEAPONS[3].reload < a.WEAPONS[4].reload, "los tiempos de recarga escalan de Desert a Cañón");
 check(a.WEAPONS[1].falloff && a.WEAPONS[1].falloff.min < 0.5, "el subfusil pierde daño con la distancia");
 
