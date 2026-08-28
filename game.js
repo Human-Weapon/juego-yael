@@ -868,6 +868,7 @@
   }
 
   function moveActor(e) {
+    if (e.canStepUp) tryEnemyStepUp(e);
     const boxH = { x: e.x + e.vx, y: e.y, w: e.w, h: e.h };
     for (const t of tilesTouching(boxH)) {
       if (!blocksH(t.id)) continue;
@@ -912,6 +913,26 @@
       e.vx = 0;
     }
     if (e.y > worldH * TILE + 80) e.fell = true;
+  }
+
+  function tryEnemyStepUp(e) {
+    if (!e.canStepUp || !e.onGround || Math.abs(e.vx) < 0.1) return false;
+    const direction = Math.sign(e.vx);
+    const frontX = e.x + (direction > 0 ? e.w + 1 : -1);
+    const frontTx = Math.floor(frontX / TILE);
+    const footTy = Math.floor((e.y + e.h - 2) / TILE);
+    if (!blocksH(tileAt(frontTx, footTy))) return false;
+    // Es estrictamente una subida de una celda: nunca sustituye el salto ni
+    // permite atravesar una pared de dos cajas o una estructura cerrada.
+    if (blocksH(tileAt(frontTx, footTy - 1))) return false;
+    const stepY = footTy * TILE - e.h;
+    const liftedBox = { x: e.x, y: stepY, w: e.w, h: e.h };
+    if (tilesTouching(liftedBox).some((tile) => blocksH(tile.id))) return false;
+    e.y = stepY;
+    e.vy = 0;
+    e.onGround = true;
+    e.stepTimer = 10;
+    return true;
   }
 
   function gunPos() {
@@ -1385,6 +1406,8 @@
       signatureRush: 0,
       lastSignature: null,
       lastDecision: "emerge",
+      canStepUp: !isFlying && !["turret", "sniper", "mine"].includes(d.behavior),
+      stepTimer: 0,
     });
     if (isFlying) {
       burst(x, y, type === "alien_ship" ? "#5cf6ff" : "#39ff14", 12);

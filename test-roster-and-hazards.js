@@ -89,6 +89,27 @@ const instrumented = source.replace(marker, `  requestAnimationFrame(loop);
       keys.d=false;
       return {x:player.x,y:player.y,passed:player.x>6*TILE};
     },
+    enemyLowStep() {
+      worldW=12; worldH=12; tiles=Array.from({length:worldH},()=>Array(worldW).fill(T.EMPTY));
+      for(let x=0;x<worldW;x++) tiles[9][x]=T.GRASS;
+      tiles[8][5]=T.CRATE;
+      const enemy={x:4*TILE,y:9*TILE-34,w:34,h:34,vx:0,vy:0,onGround:true,canStepUp:true};
+      for(let i=0;i<72;i++) {
+        enemy.vx=2.4;
+        enemy.vy=Math.min(8,enemy.vy+0.42);
+        if(typeof tryEnemyStepUp === "function") tryEnemyStepUp(enemy);
+        moveActor(enemy);
+      }
+      return {x:enemy.x,y:enemy.y,passed:enemy.x>6*TILE};
+    },
+    enemyTallWall() {
+      worldW=12; worldH=12; tiles=Array.from({length:worldH},()=>Array(worldW).fill(T.EMPTY));
+      for(let x=0;x<worldW;x++) tiles[9][x]=T.GRASS;
+      tiles[8][5]=T.CRATE; tiles[7][5]=T.CRATE;
+      const enemy={x:4*TILE,y:9*TILE-34,w:34,h:34,vx:0,vy:0,onGround:true,canStepUp:true};
+      for(let i=0;i<72;i++) { enemy.vx=2.4; enemy.vy=Math.min(8,enemy.vy+0.42); tryEnemyStepUp(enemy); moveActor(enemy); }
+      return {x:enemy.x,blocked:enemy.x<5*TILE};
+    },
     specs() { return { shotgun:WEAPONS.find(w=>w.id==="fire_shotgun").dmg, gel:SPECIALS.find(s=>s.id==="inertia_gel").puddleRadius }; }
   };
 })();`);
@@ -129,6 +150,10 @@ const climb = api.heavyClimb();
 check(climb.climbed && climb.y < 48, "Pesado escala un obstáculo sólido real", JSON.stringify(climb));
 const crateWall = api.heavyCrateWall();
 check(crateWall.passed, "Pesado supera un muro doble de cajas como el del mapa", JSON.stringify(crateWall));
+const enemyStep = api.enemyLowStep();
+check(enemyStep.passed, "enemigo terrestre supera una caja baja sin atravesar muros", JSON.stringify(enemyStep));
+const enemyTallWall = api.enemyTallWall();
+check(enemyTallWall.blocked, "enemigo terrestre no atraviesa un muro alto de cajas", JSON.stringify(enemyTallWall));
 const specs = api.specs();
 check(specs.shotgun >= 30, "La escopeta recompensa el combate a quemarropa", JSON.stringify(specs));
 check(specs.gel >= 46, "El Gel de inercia tiene un área de resbalón ampliada", JSON.stringify(specs));
