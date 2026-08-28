@@ -273,20 +273,54 @@
   window.addEventListener("resize", fitCanvas);
   fitCanvas();
 
+  let menuSelectedLevel = 1;
+
   window.addEventListener("keydown", (e) => {
     const k = e.key.toLowerCase();
     keys[k] = true;
     if (["arrowup", "arrowdown", "arrowleft", "arrowright", " ", "w", "a", "s", "d"].includes(k)) e.preventDefault();
+
+    if (state === "menu") {
+      if (k === "arrowleft" || k === "a") {
+        menuSelectedLevel = menuSelectedLevel === 1 ? 3 : menuSelectedLevel - 1;
+        sfx.switch();
+        return;
+      }
+      if (k === "arrowright" || k === "d") {
+        menuSelectedLevel = menuSelectedLevel === 3 ? 1 : menuSelectedLevel + 1;
+        sfx.switch();
+        return;
+      }
+      if (k === "1") {
+        menuSelectedLevel = 1;
+        startGame(1);
+        return;
+      }
+      if (k === "2") {
+        menuSelectedLevel = 2;
+        startGame(2);
+        return;
+      }
+      if (k === "3") {
+        menuSelectedLevel = 3;
+        startGame(3);
+        return;
+      }
+      if (k === "enter" || k === " ") {
+        startGame(menuSelectedLevel);
+        return;
+      }
+    }
+
     if (k === "enter" || k === " ") {
-      if (state === "menu") startGame(currentLevel || 1);
-      else if (state === "level_clear") startGame(2);
+      if (state === "level_clear") startGame(2);
       else if (state === "level_clear_2") startGame(3);
       else if (state === "dead" && lives <= 0) startGame(currentLevel || 1);
       else if (state === "win") startGame(1);
     }
-    if (k === "1" && (state === "menu" || state === "dead" || state === "win" || state.startsWith("level_clear"))) startGame(1);
-    if (k === "2" && (state === "menu" || state === "dead" || state === "win" || state.startsWith("level_clear"))) startGame(2);
-    if (k === "3" && (state === "menu" || state === "dead" || state === "win" || state.startsWith("level_clear"))) startGame(3);
+    if (k === "1" && (state === "dead" || state === "win" || state.startsWith("level_clear"))) startGame(1);
+    if (k === "2" && (state === "dead" || state === "win" || state.startsWith("level_clear"))) startGame(2);
+    if (k === "3" && (state === "dead" || state === "win" || state.startsWith("level_clear"))) startGame(3);
     if (k === "p" && state === "play") {
       state = "pause";
       pauseBGM();
@@ -309,7 +343,16 @@
     const r = canvas.getBoundingClientRect();
     mouse.x = ((e.clientX - r.left) / r.width) * VIEW_W;
     mouse.y = ((e.clientY - r.top) / r.height) * VIEW_H;
+
+    if (state === "menu") {
+      if (mouse.y >= 118 && mouse.y <= 408) {
+        if (mouse.x >= 48 && mouse.x < 312) menuSelectedLevel = 1;
+        else if (mouse.x >= 348 && mouse.x < 612) menuSelectedLevel = 2;
+        else if (mouse.x >= 648 && mouse.x < 912) menuSelectedLevel = 3;
+      }
+    }
   });
+
   canvas.addEventListener("mousedown", (e) => {
     e.preventDefault();
     ensureAudio();
@@ -321,7 +364,24 @@
       mouse.right = true;
       mouse.rightClick = true;
     }
-    if (state === "menu") startGame();
+    if (state === "menu") {
+      if (mouse.y >= 118 && mouse.y <= 408) {
+        if (mouse.x >= 48 && mouse.x < 312) {
+          menuSelectedLevel = 1;
+          startGame(1);
+          return;
+        } else if (mouse.x >= 348 && mouse.x < 612) {
+          menuSelectedLevel = 2;
+          startGame(2);
+          return;
+        } else if (mouse.x >= 648 && mouse.x < 912) {
+          menuSelectedLevel = 3;
+          startGame(3);
+          return;
+        }
+      }
+      startGame(menuSelectedLevel);
+    }
   });
   window.addEventListener("mouseup", (e) => {
     if (e.button === 0) mouse.left = false;
@@ -2017,25 +2077,154 @@
     }
   }
 
+  function drawLevelSelectMenu() {
+    drawBg();
+
+    ctx.fillStyle = "rgba(7, 6, 12, 0.88)";
+    roundRect(24, 18, VIEW_W - 48, VIEW_H - 36, 10);
+    ctx.fill();
+    ctx.strokeStyle = "#e0b33a";
+    ctx.lineWidth = 3;
+    roundRect(24, 18, VIEW_W - 48, VIEW_H - 36, 10);
+    ctx.stroke();
+
+    ctx.fillStyle = "#5cf6ff";
+    ctx.font = "bold 30px Courier New";
+    ctx.textAlign = "center";
+    ctx.fillText("YAEL — PROTOCOLO BELMONT", VIEW_W / 2, 54);
+
+    ctx.fillStyle = "#e0b33a";
+    ctx.font = "bold 13px Courier New";
+    ctx.fillText("SELECCIONA EL SECTOR DE COMBATE", VIEW_W / 2, 76);
+
+    ctx.fillStyle = "#8b9bb4";
+    ctx.font = "11px Courier New";
+    ctx.fillText("Usa las Flechas / A-D o haz Clic en una mision para elegir nivel", VIEW_W / 2, 96);
+
+    const cards = [
+      {
+        num: 1,
+        title: "NIVEL 1: CASTILLO",
+        sub: "PROTOCOLO BELMONT",
+        tag: "TIERRA · 240 TILES",
+        boss: "Boss: Rey Marino (Gyojin)",
+        desc: ["Fosos de magma ardiente", "Gyojin pulpo, anguila y cangrejo", "Barricadas tácticas de sacos"],
+        color: "#ff6b00",
+        accent: "#ffa200",
+        x: 48,
+      },
+      {
+        num: 2,
+        title: "NIVEL 2: REACTOR",
+        sub: "SECTOR RADIACTIVO",
+        tag: "TOXICO · 260 TILES",
+        boss: "Boss: Titan Colosal (950 HP)",
+        desc: ["Estrellas de fuego verde", "Ataque telegrafiado con aviso", "Nucleo expuesto (2X dano)"],
+        color: "#39ff14",
+        accent: "#b4ff39",
+        x: 348,
+      },
+      {
+        num: 3,
+        title: "NIVEL 3: LA TORRE",
+        sub: "TORRE DEL CATACLISMO",
+        tag: "VERTICAL · 180 TILES",
+        boss: "Boss: Nave Nodriza (1200 HP)",
+        desc: ["¡La lava sube sin descanso!", "Laser vertical y rayo tractor", "Orbes de paralisis por 2s"],
+        color: "#5cf6ff",
+        accent: "#00f0ff",
+        x: 648,
+      },
+    ];
+
+    const cardW = 264;
+    const cardH = 290;
+    const cardY = 118;
+
+    for (const c of cards) {
+      const isSelected = menuSelectedLevel === c.num;
+
+      ctx.save();
+      ctx.fillStyle = isSelected ? "rgba(22, 28, 48, 0.95)" : "rgba(12, 14, 24, 0.75)";
+      roundRect(c.x, cardY, cardW, cardH, 8);
+      ctx.fill();
+
+      ctx.strokeStyle = isSelected ? c.color : "rgba(100, 110, 130, 0.4)";
+      ctx.lineWidth = isSelected ? 3.5 : 1.5;
+      if (isSelected) {
+        ctx.shadowColor = c.color;
+        ctx.shadowBlur = 16;
+      }
+      roundRect(c.x, cardY, cardW, cardH, 8);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.fillStyle = isSelected ? c.color : "#d0d6e0";
+      ctx.font = "bold 15px Courier New";
+      ctx.textAlign = "center";
+      ctx.fillText(c.title, c.x + cardW / 2, cardY + 28);
+
+      ctx.fillStyle = c.accent;
+      ctx.font = "bold 11px Courier New";
+      ctx.fillText(c.sub, c.x + cardW / 2, cardY + 46);
+
+      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      ctx.fillRect(c.x + 16, cardY + 58, cardW - 32, 20);
+      ctx.fillStyle = isSelected ? "#fff" : "#8b9bb4";
+      ctx.font = "bold 10px Courier New";
+      ctx.fillText(c.tag, c.x + cardW / 2, cardY + 72);
+
+      ctx.fillStyle = "#ef233c";
+      ctx.font = "bold 11px Courier New";
+      ctx.fillText(c.boss, c.x + cardW / 2, cardY + 104);
+
+      ctx.fillStyle = "#d0d6e0";
+      ctx.font = "11px Courier New";
+      let dy = cardY + 132;
+      for (const line of c.desc) {
+        ctx.fillText("• " + line, c.x + cardW / 2, dy);
+        dy += 20;
+      }
+
+      const btnY = cardY + cardH - 46;
+      ctx.fillStyle = isSelected ? c.color : "rgba(40, 50, 70, 0.8)";
+      roundRect(c.x + 24, btnY, cardW - 48, 30, 5);
+      ctx.fill();
+      ctx.fillStyle = isSelected ? "#07060c" : "#fff";
+      ctx.font = "bold 12px Courier New";
+      ctx.fillText(isSelected ? "▶ JUGAR [ " + c.num + " ]" : "PRESIONA [ " + c.num + " ]", c.x + cardW / 2, btnY + 20);
+    }
+
+    const mainBtnX = VIEW_W / 2 - 190;
+    const mainBtnY = 422;
+    const mainBtnW = 380;
+    const mainBtnH = 40;
+    const hoverMain = mouse.x >= mainBtnX && mouse.x <= mainBtnX + mainBtnW && mouse.y >= mainBtnY && mouse.y <= mainBtnY + mainBtnH;
+
+    ctx.save();
+    ctx.fillStyle = hoverMain ? "#ffe600" : "#e0b33a";
+    if (hoverMain) {
+      ctx.shadowColor = "#ffe600";
+      ctx.shadowBlur = 18;
+    }
+    roundRect(mainBtnX, mainBtnY, mainBtnW, mainBtnH, 6);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.fillStyle = "#07060c";
+    ctx.font = "bold 14px Courier New";
+    ctx.textAlign = "center";
+    ctx.fillText("INICIAR NIVEL " + menuSelectedLevel + "  (ENTER O CLIC)", VIEW_W / 2, mainBtnY + 25);
+
+    ctx.fillStyle = "#8b9bb4";
+    ctx.font = "10px Courier New";
+    ctx.fillText("A / D: Moverse   S: Agacharse   W / Espacio: Saltar   E: Armas   P: Pausa   M: Silencio", VIEW_W / 2, 484);
+  }
+
   function draw() {
     sky();
     if (state === "menu") {
-      drawBg();
-      panel("YAEL — PROTOCOLO BELMONT", [
-        "Armadura MJOLNIR. Fuego Radiactivo. Lava Viva.",
-        "Cruza los tres sectores y destruye a las amenazas alienigenas.",
-        "",
-        "NIVEL 1: Castillo & Gyojin de Lava (Rey Marino)",
-        "NIVEL 2: Reactor Radiactivo (Estrellas & Titan Colosal)",
-        "NIVEL 3: Torre del Cataclismo (Lava Ascendente & Nave Nodriza)",
-        "",
-        "CONTROLES:",
-        "A / D: Moverse    S: Agacharse    W / Espacio: Saltar",
-        "Mouse: Apuntar    Clic Izq: Disparar    Clic Der: Especial",
-        "E: Cambiar Arma   P: Pausa        M: Silencio",
-        "",
-        "ENTER o Clic para Empezar  |  Presiona 1, 2 o 3 para elegir Nivel",
-      ]);
+      drawLevelSelectMenu();
       return;
     }
 
