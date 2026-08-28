@@ -3,6 +3,7 @@
 const fs = require("fs");
 
 const spritePath = "assets/sprites/heroes-run-frames-v2.png";
+const classicRunPath = "assets/sprites/heroes-classic-run-v3.png";
 const actionPath = "assets/sprites/heroes-actions-v1.png";
 const spritesSource = fs.readFileSync("sprites.js", "utf8");
 const png = fs.readFileSync(spritePath);
@@ -17,6 +18,16 @@ check(png.readUInt32BE(16) === 1024 && png.readUInt32BE(20) === 1536, "la hoja u
 check(spritesSource.includes(`heroes-run-frames-v2.png`), "el atlas nuevo está conectado al cargador de sprites");
 check((spritesSource.match(/runFrames:\s*\[/g) || []).length === 3, "los tres personajes tienen un ciclo de carrera explícito");
 check(spritesSource.includes("classic_run_extra1") && spritesSource.includes("classic_run_extra2"), "el Clásico tiene dos poses nuevas");
+const classicRunExists = fs.existsSync(classicRunPath);
+check(classicRunExists, "el Clásico usa una hoja de carrera aislada y reemplazable");
+if (classicRunExists) {
+  const classicRunPng = fs.readFileSync(classicRunPath);
+  check(classicRunPng.readUInt32BE(0) === 0x89504e47, "la carrera aislada del Clásico es un PNG válido");
+  check(classicRunPng.readUInt32BE(16) % 2 === 0, "la carrera aislada del Clásico tiene dos celdas simétricas");
+}
+check(spritesSource.includes("heroes-classic-run-v3.png"), "el Clásico no reutiliza la hoja compartida para sus poses extra");
+check(spritesSource.includes("classicRunArt.classic_run_extra1") && spritesSource.includes("classicRunArt.classic_run_extra2"), "el ciclo del Clásico conecta únicamente sus dos cuadros nuevos");
+check(spritesSource.includes("fitContent: true"), "la carrera aislada recorta su silueta antes de escalarla, sin encogerla dentro de la celda");
 check(spritesSource.includes("agile_run_extra1") && spritesSource.includes("agile_run_extra2"), "el Ágil tiene dos poses nuevas");
 check(spritesSource.includes("heavy_run_extra1") && spritesSource.includes("heavy_run_extra2"), "el Pesado tiene dos poses nuevas");
 check(spritesSource.includes("transparentBackground: true"), "las poses nuevas eliminan el fondo claro al cargar");
@@ -26,5 +37,6 @@ check(spritesSource.includes("heroes-actions-v1.png"), "el atlas de agacharse, d
 check((spritesSource.match(/crouch: heroActionArt/g) || []).length === 3, "los tres personajes tienen sprite propio de agacharse");
 check((spritesSource.match(/dash: heroActionArt/g) || []).length === 3, "los tres personajes tienen sprite propio de dash");
 check((spritesSource.match(/select: heroActionArt/g) || []).length === 3, "los tres personajes tienen pose frontal de selección");
+check(/y:\s*b\.y\s*\+\s*\(player\.crouch\s*\?\s*6\s*:\s*8\)/.test(fs.readFileSync("game.js", "utf8")), "el arma se ancla a la altura del torso y no debajo de las manos");
 
 console.log("\nSPRITE ANIMATION CHECK PASSED");

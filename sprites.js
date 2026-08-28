@@ -699,6 +699,26 @@ kwwwwww9ffffccccccccccccccccffff9wwwwwwk
       g.putImageData(image, 0, 0);
     }
 
+    function opaqueBounds(canvas) {
+      const g = canvas.getContext("2d");
+      const image = g.getImageData(0, 0, canvas.width, canvas.height);
+      const data = image.data;
+      let left = canvas.width;
+      let top = canvas.height;
+      let right = -1;
+      let bottom = -1;
+      for (let y = 0; y < canvas.height; y++) {
+        for (let x = 0; x < canvas.width; x++) {
+          if (data[(y * canvas.width + x) * 4 + 3] < 16) continue;
+          left = Math.min(left, x);
+          top = Math.min(top, y);
+          right = Math.max(right, x);
+          bottom = Math.max(bottom, y);
+        }
+      }
+      return right >= left ? { x: left, y: top, w: right - left + 1, h: bottom - top + 1 } : null;
+    }
+
     function atlasFrames(path, cols, rows, names, frameW, frameH, options) {
       const frames = {};
       const sheet = document.createElement("img");
@@ -726,6 +746,18 @@ kwwwwww9ffffccccccccccccccccffff9wwwwwwk
         targets.forEach((target, index) => {
           const sx = (index % cols) * cellW;
           const sy = Math.floor(index / cols) * cellH;
+          let subjectCanvas = null;
+          let subject = null;
+          if (options && options.fitContent) {
+            subjectCanvas = document.createElement("canvas");
+            subjectCanvas.width = Math.round(cellW);
+            subjectCanvas.height = Math.round(cellH);
+            const source = subjectCanvas.getContext("2d");
+            source.imageSmoothingEnabled = false;
+            source.drawImage(sheet, sx, sy, cellW, cellH, 0, 0, subjectCanvas.width, subjectCanvas.height);
+            removeConnectedLightBackground(subjectCanvas);
+            subject = opaqueBounds(subjectCanvas);
+          }
           const paint = (canvas, offsetY, squash, flash) => {
             const g = canvas.getContext("2d");
             g.imageSmoothingEnabled = false;
@@ -735,7 +767,14 @@ kwwwwww9ffffccccccccccccccccffff9wwwwwwk
             g.translate(canvas.width / 2, canvas.height / 2);
             g.scale(1.025, squash);
             g.translate(-canvas.width / 2, -canvas.height / 2);
-            g.drawImage(sheet, sx, sy, cellW, cellH, 0, 0, canvas.width, canvas.height);
+            if (subjectCanvas && subject) {
+              const scale = Math.min((canvas.width - 2) / subject.w, (canvas.height - 2) / subject.h);
+              const w = subject.w * scale;
+              const h = subject.h * scale;
+              g.drawImage(subjectCanvas, subject.x, subject.y, subject.w, subject.h, (canvas.width - w) / 2, canvas.height - h - 1, w, h);
+            } else {
+              g.drawImage(sheet, sx, sy, cellW, cellH, 0, 0, canvas.width, canvas.height);
+            }
             g.restore();
             if (flash) {
               g.globalCompositeOperation = "source-atop";
@@ -777,6 +816,9 @@ kwwwwww9ffffccccccccccccccccffff9wwwwwwk
       "agile_run_extra1", "agile_run_extra2",
       "heavy_run_extra1", "heavy_run_extra2",
     ], 48, 60, { transparentBackground: true });
+    const classicRunArt = atlasFrames("assets/sprites/heroes-classic-run-v3.png", 2, 1, [
+      "classic_run_extra1", "classic_run_extra2",
+    ], 48, 60, { transparentBackground: true, fitContent: true });
     const heroActionArt = atlasFrames("assets/sprites/heroes-actions-v1.png", 3, 3, [
       "classic_crouch", "classic_dash", "classic_select",
       "agile_crouch", "agile_dash", "agile_select",
@@ -792,7 +834,7 @@ kwwwwww9ffffccccccccccccccccffff9wwwwwwk
       campaignSprites[type] = { idle: artSet[type], walk: artSet[type + "__walk"], shoot: artSet[type + "__action"] };
     }
     const heroes = {
-      classic: { idle: heroArt.classic_idle, run1: heroArt.classic_run, run2: heroRunArt.classic_run_extra1, run3: heroRunArt.classic_run_extra2, runFrames: [heroArt.classic_run, heroRunArt.classic_run_extra1, heroRunArt.classic_run_extra2], jump: heroArt.classic_jump, crouch: heroActionArt.classic_crouch, dash: heroActionArt.classic_dash, select: heroActionArt.classic_select, fire: heroArt.classic_fire },
+      classic: { idle: heroArt.classic_idle, run1: classicRunArt.classic_run_extra1, run2: classicRunArt.classic_run_extra2, run3: classicRunArt.classic_run_extra1, runFrames: [classicRunArt.classic_run_extra1, classicRunArt.classic_run_extra2], jump: heroArt.classic_jump, crouch: heroActionArt.classic_crouch, dash: heroActionArt.classic_dash, select: heroActionArt.classic_select, fire: heroArt.classic_fire },
       agile: { idle: heroArt.agile_idle, run1: heroArt.agile_run, run2: heroRunArt.agile_run_extra1, run3: heroRunArt.agile_run_extra2, runFrames: [heroArt.agile_run, heroRunArt.agile_run_extra1, heroRunArt.agile_run_extra2], jump: heroArt.agile_jump, crouch: heroActionArt.agile_crouch, dash: heroActionArt.agile_dash, select: heroActionArt.agile_select, fire: heroArt.agile_fire },
       heavy: { idle: heroArt.heavy_idle, run1: heroArt.heavy_run, run2: heroRunArt.heavy_run_extra1, run3: heroRunArt.heavy_run_extra2, runFrames: [heroArt.heavy_run, heroRunArt.heavy_run_extra1, heroRunArt.heavy_run_extra2], jump: heroArt.heavy_climb, crouch: heroActionArt.heavy_crouch, dash: heroActionArt.heavy_dash, select: heroActionArt.heavy_select, fire: heroArt.heavy_fire, climb: heroArt.heavy_climb },
     };

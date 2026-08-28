@@ -937,7 +937,7 @@
 
   function gunPos() {
     const b = bodyBox(player);
-    return { x: b.x + b.w / 2, y: b.y + (player.crouch ? 10 : 14) };
+    return { x: b.x + b.w / 2, y: b.y + (player.crouch ? 6 : 8) };
   }
 
   // `gunPos` is the hand/stock anchor used to draw the weapon. Projectiles
