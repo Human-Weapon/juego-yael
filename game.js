@@ -59,7 +59,7 @@
   // supervivencia y Pesado sustituye por completo el salto por escalada.
   const CHARACTERS = [
     { id: "classic", name: "CLÁSICO", title: "CLÁSICO", maxHp: 7, run: 1, acc: 1, airAcc: 1, jump: -12.1, holdGravity: 0.36, gravity: 0.42, maxFall: 11.2, reloadMultiplier: 1, ammoMultiplier: 1, dashSpeed: 12, dashFrames: 8, dashInv: 30, dashCooldown: 42, climb: false, color: "#ffe29a", description: "7 corazones · salto controlado" },
-    { id: "agile", name: "AGIL", title: "SCOUT AGIL", maxHp: 2, run: 2, acc: 2, airAcc: 2, jump: -18, holdGravity: 0.72, gravity: 0.84, maxFall: 22.4, reloadMultiplier: 0.5, ammoMultiplier: 1, dashSpeed: 15, dashFrames: 9, dashInv: 30, dashCooldown: 45, airJumps: 1, climb: false, color: "#5cf6ff", description: "2 corazones · 2× velocidad · doble salto" },
+    { id: "agile", name: "AGIL", title: "SCOUT AGIL", maxHp: 2, run: 2, acc: 2, airAcc: 2, jump: -18, holdGravity: 0.72, gravity: 0.84, maxFall: 22.4, reloadMultiplier: 0.5, damageMultiplier: 0.7, ammoMultiplier: 1, dashSpeed: 15, dashFrames: 9, dashInv: 30, dashCooldown: 45, airJumps: 1, climb: false, color: "#5cf6ff", description: "2 corazones · 2× velocidad · doble salto" },
     { id: "heavy", name: "PESADO", title: "ESCALADOR PESADO", maxHp: 16, run: 0.72, acc: 0.78, airAcc: 0.55, jump: 0, holdGravity: 0.4, gravity: 0.45, maxFall: 10, reloadMultiplier: 1, ammoMultiplier: 2, dashSpeed: 19, dashFrames: 26, dashInv: 30, dashCooldown: 150, dashDamage: 42, dashKnockback: 9, climb: true, climbSpeed: 3.1, color: "#ff9f1c", description: "16 corazones · munición doble · escala" },
   ];
 
@@ -788,6 +788,12 @@
     return Math.max(1, Math.round(weapon.magazine * ((profile && profile.ammoMultiplier) || 1)));
   }
 
+  function playerDamage(damage) {
+    if (!damage) return 0;
+    const multiplier = player && player.move ? (player.move.damageMultiplier || 1) : 1;
+    return Math.max(1, Math.round(damage * multiplier));
+  }
+
   function startDash(direction) {
     const p = player;
     if (!p || p.dead || state !== "play" || p.dashCool > 0 || p.trapped || p.stunTimer > 0 || !direction) return false;
@@ -926,6 +932,7 @@
 
   function spawnBullet(x, y, ang, extra) {
     const w = WEAPONS[player.weapon];
+    const rawDamage = extra.dmg === undefined ? w.dmg : extra.dmg;
     const bullet = {
       x,
       y,
@@ -936,7 +943,7 @@
       vx: Math.cos(ang) * (extra.speed || w.speed),
       vy: Math.sin(ang) * (extra.speed || w.speed),
       r: extra.r || w.r,
-      dmg: extra.dmg || w.dmg,
+      dmg: playerDamage(rawDamage),
       life: extra.life || 50,
       owner: "player",
       plasma: extra.plasma || w.plasma || false,
@@ -1007,7 +1014,7 @@
         if (en.dead || en.state === "emerge") continue;
         const ex = en.x + en.w / 2, ey = en.y + en.h / 2;
         const angleDiff = Math.abs(Math.atan2(Math.sin(angTo(g.x, g.y, ex, ey) - aim), Math.cos(angTo(g.x, g.y, ex, ey) - aim)));
-        if (dist(g.x, g.y, ex, ey) <= reach && angleDiff < 0.9) hurtEnemy(en, s.dmg);
+        if (dist(g.x, g.y, ex, ey) <= reach && angleDiff < 0.9) hurtEnemy(en, playerDamage(s.dmg));
       }
       burst(g.x + Math.cos(aim) * 32, g.y + Math.sin(aim) * 32, s.color, 9);
       sfx.special();
@@ -1018,7 +1025,7 @@
     gadgets.push({
       type: s.id, x: launch.x, y: launch.y, vx: Math.cos(aim) * speed, vy: Math.sin(aim) * speed - (s.hook ? 0 : 1.8),
       r: s.hook ? 6 : 9, life: s.hook ? 170 : (s.fuse || 360), fuse: s.fuse || 0,
-      gravity: s.gravity || 0, bounce: s.bounce || 0, dmg: s.dmg || 0, explode: s.explode || 0,
+      gravity: s.gravity || 0, bounce: s.bounce || 0, dmg: playerDamage(s.dmg || 0), explode: s.explode || 0,
       sticky: !!s.sticky, hook: !!s.hook, gel: !!s.gel, puddleRadius: s.puddleRadius || 34, color: s.color, state: "flying", target: null,
       hitTargets: [],
     });

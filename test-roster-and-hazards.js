@@ -24,7 +24,7 @@ const marker = "  requestAnimationFrame(loop);\n})();";
 if (!source.includes(marker)) throw new Error("No se encontró el punto de instrumentación");
 const instrumented = source.replace(marker, `  requestAnimationFrame(loop);
   globalThis.__YAEL_ROSTER_TEST__ = {
-    roster(index) { highestUnlockedLevel=CAMPAIGN.length; selectedCharacter=index; startGame(1); return { id:player.character, hp:player.maxHp, run:player.move.run, acc:player.move.acc, airAcc:player.move.airAcc, jump:player.move.jump, gravity:player.move.gravity, maxFall:player.move.maxFall, climb:player.move.climb, airJumps:player.move.airJumps || 0, reloadMultiplier:player.move.reloadMultiplier || 1, ammoMultiplier:player.move.ammoMultiplier || 1 }; },
+    roster(index) { highestUnlockedLevel=CAMPAIGN.length; selectedCharacter=index; startGame(1); return { id:player.character, hp:player.maxHp, run:player.move.run, acc:player.move.acc, airAcc:player.move.airAcc, jump:player.move.jump, gravity:player.move.gravity, maxFall:player.move.maxFall, climb:player.move.climb, airJumps:player.move.airJumps || 0, reloadMultiplier:player.move.reloadMultiplier || 1, damageMultiplier:player.move.damageMultiplier || 1, ammoMultiplier:player.move.ammoMultiplier || 1 }; },
     doubleJump() {
       highestUnlockedLevel=CAMPAIGN.length; selectedCharacter=1; startGame(1);
       player.onGround=false; player.coyote=0; player.airJumpsLeft=1; player.jumpHeld=false; player.jumpBuf=0; keys.w=true;
@@ -46,6 +46,11 @@ const instrumented = source.replace(marker, `  requestAnimationFrame(loop);
       highestUnlockedLevel=CAMPAIGN.length; selectedCharacter=index; startGame(1);
       player.weapon=0; player.ammo[0]=0; beginReload();
       return { duration:player.reloadTimer, capacity:magazineCapacity(WEAPONS[0], player.move), reloadDuration:player.reloadDuration };
+    },
+    damageProbe(index) {
+      highestUnlockedLevel=CAMPAIGN.length; selectedCharacter=index; startGame(1);
+      bullets=[]; player.weapon=0;
+      return spawnBullet(player.x, player.y, 0, { dmg:WEAPONS[0].dmg }).dmg;
     },
     dashProbe(index) {
       highestUnlockedLevel=CAMPAIGN.length; selectedCharacter=index; startGame(1); enemies=[];
@@ -90,7 +95,7 @@ const agile = api.roster(1);
 const heavy = api.roster(2);
 check(classic.hp === 7 && classic.jump < -10 && classic.jump > -14, "Clásico: 7 corazones y salto moderado", JSON.stringify(classic));
 check(agile.hp === 2 && agile.run >= classic.run * 2 && agile.acc >= classic.acc * 1.8 && agile.airAcc >= classic.airAcc * 1.8 && Math.abs(agile.jump) > Math.abs(classic.jump) && agile.gravity >= classic.gravity * 1.8 && agile.maxFall >= classic.maxFall * 1.8, "Ágil: movilidad general duplicada para esquivar", JSON.stringify(agile));
-check(agile.reloadMultiplier === 0.5, "Ágil: recarga 50% más rápida", JSON.stringify(agile));
+check(agile.reloadMultiplier === 0.5, "Ágil: recarga exactamente 2× más rápida", JSON.stringify(agile));
 check(agile.airJumps === 1 && classic.airJumps === 0 && heavy.airJumps === 0, "Ágil: doble salto exclusivo", JSON.stringify({ agile, classic, heavy }));
 const agileJump = api.doubleJump();
 check(agileJump.first.vy < -10 && agileJump.first.left === 0 && agileJump.second.left === 0 && agileJump.second.vy > -15, "Ágil: el segundo impulso aéreo se consume una sola vez", JSON.stringify(agileJump));
@@ -101,6 +106,9 @@ const classicReload = api.reloadProbe(0);
 const agileReload = api.reloadProbe(1);
 const heavyReload = api.reloadProbe(2);
 check(agileReload.duration === classicReload.duration * 0.5 && agileReload.reloadDuration === agileReload.duration, "Ágil recarga en la mitad de fotogramas", JSON.stringify({ classicReload, agileReload }));
+const classicDamage = api.damageProbe(0);
+const agileDamage = api.damageProbe(1);
+check(agile.damageMultiplier === 0.7 && agileDamage === Math.round(classicDamage * 0.7), "Ágil inflige 30% menos daño con sus armas", JSON.stringify({ classicDamage, agileDamage, agile }));
 check(heavyReload.capacity === 24, "Pesado carga el doble de munición por cargador", JSON.stringify(heavyReload));
 const agileDash = api.dashProbe(1);
 check(agileDash.available && agileDash.started.inv && agileDash.distance > 45 && agileDash.hpAfterHit === agile.hp && agileDash.cooldown > 0, "doble D activa dash aéreo invulnerable", JSON.stringify(agileDash));
