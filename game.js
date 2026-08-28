@@ -495,6 +495,10 @@
       if (mouse.y >= 126 && mouse.y <= 420 && index >= 0 && index < CHARACTERS.length) {
         characterCursor = index;
         confirmCharacterSelect();
+      } else if (mouse.x >= 310 && mouse.x <= 650 && mouse.y >= 454 && mouse.y <= 496) {
+        // El botón inferior es una segunda ruta explícita de confirmación;
+        // antes sólo respondían las tarjetas y el menú parecía congelado.
+        confirmCharacterSelect();
       }
     } else if (state === "loadout") {
       if (mouse.y >= 118 && mouse.y < 442) {
@@ -2885,7 +2889,10 @@
 
   function update() {
     time++;
-    if (state === "pause" || state === "menu" || state === "loadout" || state === "dead") return;
+    // La selección de personaje ocurre antes de crear el jugador del nivel.
+    // Pausar aquí evita que el bucle intente actualizar un jugador null y
+    // congele la pantalla con un TypeError en cada frame.
+    if (state === "pause" || state === "menu" || state === "character_select" || state === "loadout" || state === "dead") return;
     if (state === "win") {
       winT++;
       return;
@@ -4160,7 +4167,12 @@
       if (selected) { ctx.fillStyle = "#ffe600"; ctx.font = "bold 26px Courier New"; ctx.fillText("▶", x + 12, y + 42); }
     }
     const active = CHARACTERS[characterCursor];
-    ctx.fillStyle = active.color; roundRect(310, 454, 340, 42, 6); ctx.fill();
+    const hoverConfirm = mouse.x >= 310 && mouse.x <= 650 && mouse.y >= 454 && mouse.y <= 496;
+    ctx.save();
+    ctx.fillStyle = active.color;
+    if (hoverConfirm) { ctx.shadowColor = active.color; ctx.shadowBlur = 18; }
+    roundRect(310, 454, 340, 42, 6); ctx.fill();
+    ctx.restore();
     ctx.fillStyle = "#07060c"; ctx.textAlign = "center"; ctx.font = "bold 13px Courier New";
     ctx.fillText("CONFIRMAR " + active.name + " [ENTER]", VIEW_W / 2, 481);
   }

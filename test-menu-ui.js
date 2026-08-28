@@ -43,7 +43,13 @@ const instrumented = source.replace(marker, `  requestAnimationFrame(loop);
   window.__YAEL_UI_TEST__ = {
     menu() { return { page: menuPage, selected: menuSelectedLevel, state }; },
     key(key) { listeners.windowKey(key); },
-    mouseMove(x, y) { listeners.canvasMouseMove(x, y); },
+    mouseMove(x, y) { window.__YAEL_MOUSE_HANDLER__({ clientX: x, clientY: y }); },
+    mouseDown(x, y) {
+      window.__YAEL_MOUSE_HANDLER__({ clientX: x, clientY: y });
+      window.__YAEL_MOUSE_DOWN_HANDLER__({ button: 0, preventDefault() {} });
+    },
+    characterSelect(level) { openCharacterSelect(level); },
+    tick() { update(); },
     draw() { draw(); },
   };
 })();`)
@@ -59,6 +65,7 @@ const originalCanvasAddEventListener = canvas.addEventListener;
 canvas.addEventListener = (name, fn) => {
   originalCanvasAddEventListener(name, fn);
   if (name === "mousemove") windowMock.__YAEL_MOUSE_HANDLER__ = fn;
+  if (name === "mousedown") windowMock.__YAEL_MOUSE_DOWN_HANDLER__ = fn;
 };
 
 class AudioMock { play() { return Promise.resolve(); } pause() {} }
@@ -93,6 +100,17 @@ ui.mouseMove(28 + 2 * 228 + 100, 112 + 90);
 check(ui.menu().selected === 3, "mover el mouse sobre una tarjeta actualiza la selección");
 ui.draw();
 check(calls.some((call) => call.key === "translate"), "el puntero pixel-art se dibuja por encima del menú");
+
+ui.characterSelect(1);
+let characterUpdateError = null;
+try {
+  ui.tick();
+} catch (err) {
+  characterUpdateError = err;
+}
+check(!characterUpdateError, "la pantalla de personaje pausa la física mientras aún no hay jugador");
+ui.mouseDown(480, 470);
+check(ui.menu().state === "loadout", "el botón de confirmar personaje responde al clic");
 
 if (failures) {
   console.error(`\nMENU UI CHECK FAILED: ${failures} problema(s)`);
