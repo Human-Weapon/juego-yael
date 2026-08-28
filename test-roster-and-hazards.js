@@ -78,6 +78,17 @@ const instrumented = source.replace(marker, `  requestAnimationFrame(loop);
       return { available:true, damage:before-target.hp, knockback:target.vx, distance:player.x-160, cooldown:player.dashCool };
     },
     heavyClimb() { worldW=4; worldH=4; tiles=Array.from({length:4},()=>Array(4).fill(T.EMPTY)); tiles[1][1]=T.BRICK; const p={x:48,y:48,w:22,h:36,vx:0,vy:0}; const climbed=tryHeavyClimb(p,1,3.1); return {climbed,x:p.x,y:p.y}; },
+    heavyCrateWall() {
+      highestUnlockedLevel=CAMPAIGN.length; selectedCharacter=2; startGame(1);
+      worldW=12; worldH=12; groundY=9; tiles=Array.from({length:worldH},()=>Array(worldW).fill(T.EMPTY));
+      for(let x=0;x<worldW;x++) tiles[9][x]=T.GRASS;
+      tiles[8][5]=T.CRATE; tiles[7][5]=T.CRATE;
+      player.x=5*TILE-player.w-1; player.y=9*TILE-player.h; player.vx=0; player.vy=0; player.onGround=true;
+      keys.d=true;
+      for(let i=0;i<64;i++) updatePlayer();
+      keys.d=false;
+      return {x:player.x,y:player.y,passed:player.x>6*TILE};
+    },
     specs() { return { shotgun:WEAPONS.find(w=>w.id==="fire_shotgun").dmg, gel:SPECIALS.find(s=>s.id==="inertia_gel").puddleRadius }; }
   };
 })();`);
@@ -116,6 +127,8 @@ const heavyDash = api.heavyDashImpact();
 check(heavyDash.available && heavyDash.distance > agileDash.distance && heavyDash.damage > 0 && heavyDash.knockback > 0 && heavyDash.cooldown > agileDash.cooldown, "Pesado: dash largo daña y empuja", JSON.stringify(heavyDash));
 const climb = api.heavyClimb();
 check(climb.climbed && climb.y < 48, "Pesado escala un obstáculo sólido real", JSON.stringify(climb));
+const crateWall = api.heavyCrateWall();
+check(crateWall.passed, "Pesado supera un muro doble de cajas como el del mapa", JSON.stringify(crateWall));
 const specs = api.specs();
 check(specs.shotgun >= 30, "La escopeta recompensa el combate a quemarropa", JSON.stringify(specs));
 check(specs.gel >= 46, "El Gel de inercia tiene un área de resbalón ampliada", JSON.stringify(specs));

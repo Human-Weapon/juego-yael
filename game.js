@@ -1539,9 +1539,14 @@
     const headTile = Math.floor((p.y - speed - 2) / TILE);
     const bodyTile = Math.floor((p.x + p.w / 2) / TILE);
     if (solid(tileAt(bodyTile, headTile))) return false;
+    // Durante la subida se mantiene la hitbox fuera del bloque. Antes se
+    // sumaba avance horizontal en cada frame y el torso entraba en la caja;
+    // el resolvedor de colisión lo expulsaba hacia atrás una y otra vez.
+    // Al alcanzar la repisa, wallAhead pasa a falso y moveActor lo deja
+    // avanzar de manera normal por encima del obstáculo.
+    p.x = direction > 0 ? frontTile * TILE - p.w : (frontTile + 1) * TILE;
     p.y -= speed;
-    p.x += direction * Math.min(1.6, speed * 0.52);
-    p.vx = direction * Math.min(1.6, speed * 0.52);
+    p.vx = 0;
     p.vy = 0;
     return true;
   }
