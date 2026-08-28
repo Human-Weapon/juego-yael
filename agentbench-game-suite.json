@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "id": "yael-campaign-verification",
+  "name": "Yael campaign deterministic verification",
+  "description": "Runs each local campaign verification twice to measure correctness and repeatability.",
+  "seed": 20260828,
+  "repetitions": 1,
+  "baseline": "first-pass",
+  "workspace_template": ".",
+  "budget": {
+    "max_runs": 12,
+    "per_run_timeout_seconds": 20,
+    "max_total_duration_seconds": 120
+  },
+  "cases": [
+    { "id": "physics", "name": "Collision and route physics", "payload": {}, "expected": {}, "tags": ["physics"] },
+    { "id": "levels", "name": "Level variety and layout", "payload": {}, "expected": {}, "tags": ["levels"] },
+    { "id": "ai", "name": "Enemy and boss personalities", "payload": {}, "expected": {}, "tags": ["ai"] },
+    { "id": "combat", "name": "Combat regression checks", "payload": {}, "expected": {}, "tags": ["combat"] },
+    { "id": "roster", "name": "Characters and hazards", "payload": {}, "expected": {}, "tags": ["roster"] },
+    { "id": "arsenal", "name": "Weapons and unlock progression", "payload": {}, "expected": {}, "tags": ["arsenal"] }
+  ],
+  "variants": [
+    { "id": "first-pass", "name": "First local verification", "config": { "mode": "verification" } },
+    { "id": "repeat-pass", "name": "Repeatability verification", "config": { "mode": "verification" } }
+  ],
+  "target": { "type": "command", "script": "tools/run_game_benchmark.py" },
+  "evaluators": [
+    { "type": "exit_code", "expected": 0 }
+  ],
+  "metrics": [
+    { "name": "success", "direction": "HIGHER_IS_BETTER", "minimum": 0, "maximum": 1, "weight": 1 },
+    { "name": "latency_seconds", "direction": "LOWER_IS_BETTER", "minimum": 0, "maximum": 20, "weight": 1 }
+  ],
+  "regression": {
+    "baseline": "first-pass",
+    "rules": [
+      { "metric": "success", "direction": "HIGHER_IS_BETTER", "absolute_threshold": 0, "min_sample_size": 1, "hard_gate": true }
+    ]
+  }
+}

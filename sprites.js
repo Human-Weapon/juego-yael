@@ -593,7 +593,144 @@ kwwwwww9ffffccccccccccccccccffff9wwwwwwk
 `, 4),
     };
 
-    return { player, shark, octopus, eel, crab, seaking, radstar, radboss, alien_ship, guns, scale: S };
+    // Nueva familia de sprites de campaña. Son rasterizados en una cuadrícula
+    // de píxeles (no polígonos de fallback) y cada ficha tiene una silueta y
+    // accesorios diferentes: ojos, casco, garras, motores, armas o coronas.
+    function combatSprite(type, boss) {
+      const u = boss ? 4 : 3, W = boss ? 28 : 18, H = boss ? 21 : 16;
+      const c = document.createElement("canvas"); c.width = W * u; c.height = H * u;
+      const g = c.getContext("2d"); g.imageSmoothingEnabled = false;
+      const C = { k:"#07060c", n:"#161b28", i:"#2c3a4d", s:"#8d99ae", c:"#5cf6ff", q:"#c77dff", r:"#9b1d3a", e:"#ff6b35", l:"#ffba08", y:"#f4d35e", f:"#ef233c", a:"#9be7de", g:"#70e000", p:"#6c2bd9", o:"#ff7b00", w:"#f3f6ff", h:"#5c4033" };
+      const px=(x,y,w,h,z)=>{g.fillStyle=C[z]||z;g.fillRect(x*u,y*u,w*u,h*u);};
+      const box=(x,y,w,h,z)=>{px(x,y,w,h,"k");px(x+1,y+1,w-2,h-2,z);};
+      const eye=(x,y,z="c")=>{px(x,y,3,2,"k");px(x+1,y,1,1,z);};
+      const core=(x,y,z="c")=>{px(x,y,4,4,"k");px(x+1,y+1,2,2,z);};
+      const leg=(x,y,dx,dy,z="s")=>{px(x,y,2,2,z);px(x+dx,y+dy,2,2,z);};
+      const traits = {
+        piranha:["fish","y","n"], firebat:["bat","o","f"], turret:["turret","c","i"], shield:["guard","c","i"], mine:["mine","l","n"], drone:["drone","q","i"], sniper:["sniper","c","n"], slime:["slime","g","g"], spore:["spore","g","a"], mutant:["mutant","f","e"], teleporter:["teleporter","q","p"], xeno_scout:["scout","c","i"], tractor_unit:["tractor","c","s"], mimic:["mimic","o","r"],
+        hammer_shark:["hammer","e","s"], sewer_kraken:["kraken","q","p"], siren_warlord:["siren","f","r"], magma_eel_lord:["serpent","o","e"], crab_tank:["tank","c","i"], ferro_worm:["worm","l","s"], admiral_octopus:["admiral","q","p"], ash_golem:["golem","e","s"], magma_emperor:["emperor","o","r"], spore_hydra:["hydra","g","a"], gamma_excavator:["excavator","l","h"], isotope_doctor:["doctor","q","w"], atomic_locomotive:["locomotive","l","h"], omega_sentinel:["sentinel","c","i"], xeno_carrier:["carrier","c","i"], tri_oracle:["oracle","q","p"], cataclysm_architect:["architect","l","q"],
+      };
+      const t=traits[type]||["guard","c","i"], kind=t[0], glow=t[1], shell=t[2];
+      if (!boss) {
+        if(kind==="fish"){px(1,7,3,2,glow);box(3,5,11,7,shell);px(5,4,5,2,glow);px(4,12,5,1,"s");eye(10,6,glow);px(14,6,3,1,"k");px(15,7,2,2,glow);}
+        else if(kind==="bat"){px(1,5,4,2,glow);px(3,4,3,2,shell);box(6,5,6,6,"n");px(7,3,3,2,"f");eye(8,6,"y");px(12,5,4,2,glow);px(7,11,1,3,"r");px(10,11,1,3,"r");}
+        else if(kind==="turret"){box(4,8,10,6,shell);box(6,4,6,5,"n");px(10,5,6,2,"s");px(15,5,3,1,glow);core(7,5,glow);px(3,14,4,1,"s");px(11,14,4,1,"s");}
+        else if(kind==="guard"){box(6,3,6,12,shell);px(7,4,4,3,"i");eye(8,5,glow);px(3,6,3,8,"s");px(2,7,2,6,glow);px(12,9,4,2,"r");leg(7,14,0,1);leg(10,14,0,1);}
+        else if(kind==="mine"){box(5,5,8,7,"n");core(7,6,glow);for(let i=0;i<4;i++){px(3+i*4,3,1,2,"s");px(3+i*4,12,1,2,"s");}px(2,7,2,1,glow);px(14,7,2,1,glow);}
+        else if(kind==="drone"||kind==="scout"){px(1,7,4,2,glow);px(13,7,4,2,glow);box(4,5,10,6,"n");px(6,4,6,2,shell);core(7,6,glow);px(7,11,1,3,"s");px(10,11,1,3,"s");}
+        else if(kind==="sniper"){box(6,3,6,12,"n");px(7,4,4,3,"i");eye(8,5,glow);px(11,8,6,1,"s");px(15,7,2,3,glow);px(4,8,2,5,"r");leg(7,14,0,1);leg(10,14,0,1);}
+        else if(kind==="slime"){px(3,12,12,2,glow);px(4,9,10,3,glow);px(6,6,6,3,"#38b000");px(7,5,4,2,"#ccff33");eye(6,9,"y");eye(10,9,"y");}
+        else if(kind==="spore"){px(7,2,4,2,glow);px(4,4,10,7,"#2e5b28");px(5,3,2,2,"#ccff33");px(11,3,2,2,"#ccff33");core(7,6,"#ccff33");leg(6,11,-2,3,glow);leg(10,11,2,3,glow);}
+        else if(kind==="mutant"){box(5,3,8,11,"#35110b");px(6,2,2,2,"f");px(10,2,2,2,"f");eye(8,5,glow);px(2,7,4,3,"f");px(12,8,5,2,"f");leg(4,12,0,2,"n");leg(11,12,0,2,"n");}
+        else if(kind==="teleporter"){px(7,2,4,2,glow);box(5,4,8,11,shell);px(6,5,6,3,"n");eye(8,6,glow);px(4,9,2,4,"c");px(12,9,2,4,"c");leg(6,14,0,1,glow);leg(10,14,0,1,glow);}
+        else if(kind==="tractor"){box(4,5,10,9,"#182b35");px(5,4,8,2,"s");core(7,7,glow);px(2,8,3,4,"i");px(13,8,3,4,"i");px(7,11,4,1,glow);}
+        else {box(3,7,12,7,"#321a0d");px(4,5,10,3,glow);px(5,8,2,2,"w");px(8,8,2,2,"w");px(11,8,2,2,"w");px(5,4,2,2,"q");px(11,4,2,2,"q");leg(6,11,0,3,"r");leg(10,11,0,3,"r");}
+      } else {
+        // Cuerpo heroico común de boss, transformado individualmente con
+        // las armas, cabezas y locomoción de cada arquetipo.
+        box(7,7,14,10,shell); px(9,4,10,4,"n"); eye(14,5,glow); core(12,10,glow); leg(9,16,0,3,"s"); leg(17,16,0,3,"s");
+        if(["kraken","admiral"].includes(kind)){for(let i=0;i<6;i++)leg(7+i*2,14,(i-3),5,glow);px(8,2,11,2,glow);eye(10,6,glow);eye(16,6,glow);}
+        else if(kind==="siren"){px(11,1,2,4,"f");px(15,1,2,4,"f");px(4,10,4,2,"s");px(2,9,2,4,"f");px(20,10,6,1,"q");}
+        else if(["serpent","worm"].includes(kind)){for(let i=0;i<5;i++){box(2+i*4,9+(i%2),6,6,shell);px(3+i*4,8+(i%2),4,1,glow);}px(21,8,5,3,glow);eye(22,9,"y");}
+        else if(kind==="hammer"){px(3,5,7,4,"s");px(2,4,3,6,"s");px(19,7,7,2,glow);}
+        else if(kind==="tank"){px(4,10,4,7,"s");px(20,10,4,7,"s");px(16,5,9,2,"s");for(let i=0;i<4;i++)core(5+i*5,16,"s");}
+        else if(kind==="golem"){px(3,8,4,8,"s");px(21,8,4,8,"s");px(8,3,12,4,"s");eye(10,5,"e");eye(16,5,"e");}
+        else if(kind==="emperor"){px(10,1,2,5,"y");px(14,0,2,6,"y");px(18,1,2,5,"y");px(2,8,6,3,glow);px(20,8,6,3,glow);}
+        else if(kind==="hydra"){for(let i=0;i<3;i++){px(7+i*5,4-(i===1?2:0),3,7,glow);box(5+i*5,1-(i===1?2:0),6,5,"#18351b");eye(7+i*5,3-(i===1?2:0),"#ccff33");}}
+        else if(kind==="excavator"){px(3,10,5,7,"h");px(16,7,10,3,glow);px(22,6,4,5,"s");for(let i=0;i<4;i++)core(5+i*4,16,glow);}
+        else if(kind==="doctor"){px(8,8,12,9,"w");px(5,10,3,5,"g");px(20,10,3,5,"q");px(12,3,4,4,"#2b1738");}
+        else if(kind==="locomotive"){px(2,10,20,7,"h");px(7,4,7,6,"h");px(16,7,7,3,glow);for(let i=0;i<4;i++)core(4+i*5,16,"s");}
+        else if(kind==="sentinel"){px(4,7,4,9,"#163b4b");px(20,7,4,9,"#163b4b");px(2,11,3,2,glow);px(23,11,3,2,glow);}
+        else if(kind==="carrier"){px(2,9,23,7,"#0d2635");px(5,5,15,4,"i");px(7,10,12,2,glow);core(9,13,glow);core(16,13,glow);}
+        else if(kind==="oracle"){for(let i=0;i<3;i++){box(4+i*7,3-(i===1?2:0),6,6,"p");eye(6+i*7,5-(i===1?2:0),glow);}core(12,11,"y");}
+        else {px(10,1,7,2,"y");px(3,5,3,3,"q");px(22,5,3,3,"q");px(2,15,5,2,"o");px(21,15,5,2,"o");}
+      }
+      return c;
+    }
+    // Los atlas son arte de imagen creado para el juego. Cada celda se copia
+    // a su propio canvas, por lo que el render mantiene el pixelado nítido y
+    // no depende de composiciones geométricas durante la partida.
+    function atlasFrames(path, cols, rows, names, frameW, frameH) {
+      const frames = {};
+      const sheet = document.createElement("img");
+      const targets = names.map((name) => {
+        const frame = document.createElement("canvas");
+        frame.width = frameW;
+        frame.height = frameH;
+        frames[name] = frame;
+        const walk = document.createElement("canvas");
+        walk.width = frameW;
+        walk.height = frameH;
+        frames[name + "__walk"] = walk;
+        const action = document.createElement("canvas");
+        action.width = frameW;
+        action.height = frameH;
+        frames[name + "__action"] = action;
+        return { frame, walk, action };
+      });
+      sheet.onload = function () {
+        const cellW = sheet.naturalWidth / cols;
+        const cellH = sheet.naturalHeight / rows;
+        targets.forEach((target, index) => {
+          const sx = (index % cols) * cellW;
+          const sy = Math.floor(index / cols) * cellH;
+          const paint = (canvas, offsetY, squash, flash) => {
+            const g = canvas.getContext("2d");
+            g.imageSmoothingEnabled = false;
+            g.clearRect(0, 0, canvas.width, canvas.height);
+            g.save();
+            g.translate(0, offsetY);
+            g.translate(canvas.width / 2, canvas.height / 2);
+            g.scale(1.025, squash);
+            g.translate(-canvas.width / 2, -canvas.height / 2);
+            g.drawImage(sheet, sx, sy, cellW, cellH, 0, 0, canvas.width, canvas.height);
+            g.restore();
+            if (flash) {
+              g.globalCompositeOperation = "source-atop";
+              g.fillStyle = "rgba(255,255,255,.18)";
+              g.fillRect(0, 0, canvas.width, canvas.height);
+              g.globalCompositeOperation = "source-over";
+            }
+          };
+          paint(target.frame, 0, 1, false);
+          paint(target.walk, 2, 0.965, false);
+          paint(target.action, -1, 1.04, true);
+        });
+      };
+      sheet.src = path;
+      return frames;
+    }
+
+    const campaignSprites = {};
+    const commonTypes = ["piranha","firebat","turret","shield","mine","drone","sniper","slime","spore","mutant","teleporter","xeno_scout","tractor_unit","mimic"];
+    const bossTypes = ["hammer_shark","sewer_kraken","siren_warlord","magma_eel_lord","crab_tank","ferro_worm","admiral_octopus","ash_golem","magma_emperor","spore_hydra","gamma_excavator","isotope_doctor","atomic_locomotive","omega_sentinel","xeno_carrier","tri_oracle","cataclysm_architect"];
+    const commonArt = atlasFrames("assets/sprites/enemies-atlas-v1.png", 4, 4, commonTypes, 72, 72);
+    const bossArtA = atlasFrames("assets/sprites/bosses-atlas-a-v1.png", 3, 2, bossTypes.slice(0, 6), 136, 104);
+    const bossArtB = atlasFrames("assets/sprites/bosses-atlas-b-v1.png", 3, 2, bossTypes.slice(6, 12), 136, 104);
+    const bossArtC = atlasFrames("assets/sprites/bosses-atlas-c-v1.png", 3, 2, bossTypes.slice(12), 136, 104);
+    const weaponArt = atlasFrames("assets/sprites/weapons-atlas-v1.png", 3, 2, ["magnum", "ar", "plasma", "shotgun", "cannon", "minigun"], 66, 44);
+    const heroArt = atlasFrames("assets/sprites/heroes-atlas-v1.png", 4, 3, [
+      "classic_idle", "classic_run", "classic_jump", "classic_fire",
+      "agile_idle", "agile_run", "agile_jump", "agile_fire",
+      "heavy_idle", "heavy_run", "heavy_climb", "heavy_fire",
+    ], 48, 60);
+    const seakingArt = atlasFrames("assets/sprites/seaking-frames-v1.png", 4, 1, ["idle", "walk", "shoot", "attack"], 144, 104);
+    const scenery = atlasFrames("assets/sprites/scenery-atlas-v1.png", 3, 2, ["ruin", "barricade", "tree", "train", "bunker", "arch"], 156, 116);
+    const gelArt = atlasFrames("assets/sprites/inertia-gel-frames-v1.png", 3, 1, ["blob", "puddle", "ripple"], 82, 34);
+    for (const type of commonTypes) campaignSprites[type] = { idle: commonArt[type], walk: commonArt[type + "__walk"], shoot: commonArt[type + "__action"] };
+    for (let i = 0; i < bossTypes.length; i++) {
+      const type = bossTypes[i];
+      const artSet = i < 6 ? bossArtA : i < 12 ? bossArtB : bossArtC;
+      campaignSprites[type] = { idle: artSet[type], walk: artSet[type + "__walk"], shoot: artSet[type + "__action"] };
+    }
+    const heroes = {
+      classic: { idle: heroArt.classic_idle, run1: heroArt.classic_run, run2: heroArt.classic_run__walk, jump: heroArt.classic_jump, crouch: heroArt.classic_idle__walk, fire: heroArt.classic_fire },
+      agile: { idle: heroArt.agile_idle, run1: heroArt.agile_run, run2: heroArt.agile_run__walk, jump: heroArt.agile_jump, crouch: heroArt.agile_idle__walk, fire: heroArt.agile_fire },
+      heavy: { idle: heroArt.heavy_idle, run1: heroArt.heavy_run, run2: heroArt.heavy_run__walk, jump: heroArt.heavy_climb, crouch: heroArt.heavy_idle__walk, fire: heroArt.heavy_fire, climb: heroArt.heavy_climb },
+    };
+    Object.assign(seaking, { idle: seakingArt.idle, walk: seakingArt.walk, shoot: seakingArt.shoot, attack: seakingArt.attack });
+    Object.assign(guns, weaponArt);
+    return Object.assign({ player, heroes, shark, octopus, eel, crab, seaking, radstar, radboss, alien_ship, guns, scenery, gel: gelArt, scale: S }, campaignSprites);
   }
 
   let cache = null;

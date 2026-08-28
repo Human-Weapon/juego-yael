@@ -1,7 +1,8 @@
 "use strict";
 
+const fs = require("fs");
 const L = require("./level.js");
-const { TILE, PHYS, T, solid, oneWay, GROUND_Y } = L;
+const { TILE, PHYS, T, solid, oneWay } = L;
 
 function fail(msg) {
   console.error("FAIL:", msg);
@@ -56,7 +57,13 @@ else ok("Air distance " + (dist / TILE).toFixed(2) + " tiles");
 function testLevel(levelNum) {
   console.log("\n=== TESTING LEVEL " + levelNum + " ===");
   const lvl = L.buildLevel(levelNum);
-  const { tiles, worldW, worldH, doorX, lavaPits, bridges } = lvl;
+  const { tiles, worldW, worldH, doorX } = lvl;
+  const boss = lvl.bossSpawn || (lvl.spawns && lvl.spawns.boss);
+
+  if (!boss || !boss.type) fail("No boss spawn in level " + levelNum);
+  else if (boss.tileX < 0 || boss.tileX >= worldW || boss.tileY < 0 || boss.tileY >= worldH) fail("Boss spawn outside level " + levelNum);
+  else ok("Boss " + boss.type + " is defined inside the map");
+  if (lvl.levelNum !== levelNum) fail("Level metadata mismatch: requested " + levelNum + " got " + lvl.levelNum);
 
   function tileAt(tx, ty) {
     if (ty < 0 || ty >= worldH || tx < 0 || tx >= worldW) return T.EMPTY;
@@ -127,7 +134,7 @@ function testLevel(levelNum) {
 
   const p = {
     x: TILE * 3,
-    y: GROUND_Y * TILE - PHYS.PLAYER_H,
+    y: lvl.groundY * TILE - PHYS.PLAYER_H,
     w: PHYS.PLAYER_W,
     h: PHYS.PLAYER_H,
     vx: 0,
@@ -144,12 +151,13 @@ function testLevel(levelNum) {
   let lastX = p.x;
 
   if (lvl.isVertical) {
-    // Bot escalador para la torre de Nivel 3
-    p.x = 18 * TILE;
-    p.y = 175 * TILE - PHYS.PLAYER_H;
-    let targetFloorY = 166;
+    // Bot escalador para todos los niveles verticales. Cada mapa declara su
+    // ruta de aterrizajes verificable, en vez de asumir que todos son la
+    // Torre del Cataclismo.
+    p.x = (lvl.verticalStartX === undefined ? 18 : lvl.verticalStartX) * TILE;
+    p.y = (lvl.verticalStartY === undefined ? 175 : lvl.verticalStartY) * TILE - PHYS.PLAYER_H;
     let floorIdx = 0;
-    const floorGoals = [
+    const towerGoals = [
       { x: 30 * TILE, fy: 166 },
       { x: 5 * TILE, fy: 154 },
       { x: 30 * TILE, fy: 142 },
@@ -163,6 +171,7 @@ function testLevel(levelNum) {
       { x: 18 * TILE, fy: 30 },
       { x: 17 * TILE, fy: 20 },
     ];
+    const floorGoals = lvl.verticalBotGoals || towerGoals;
 
     for (let frame = 0; frame < 15000; frame++) {
       p.inLava = false;
@@ -203,7 +212,7 @@ function testLevel(levelNum) {
         floorIdx++;
       }
 
-      if (p.y <= 24 * TILE && Math.abs(p.x - lvl.doorX) < 40) {
+      if (p.y <= (lvl.doorY / TILE + 5) * TILE && Math.abs(p.x - lvl.doorX) < 40) {
         ok("Bot reached summit door in " + frame + " frames, jumps=" + jumps);
         break;
       }
@@ -266,9 +275,23 @@ function testLevel(levelNum) {
   }
 }
 
-testLevel(1);
-testLevel(2);
-testLevel(3);
+for (let levelNum = 1; levelNum <= L.CAMPAIGN_LEVELS.length; levelNum++) testLevel(levelNum);
+
+console.log("\n=== CAMPAIGN INTEGRITY ===");
+const bossTypes = L.CAMPAIGN_LEVELS.map((level) => level.bossType);
+if (new Set(bossTypes).size !== L.CAMPAIGN_LEVELS.length) fail("Campaign boss types are not unique");
+else ok("20 unique bosses are assigned");
+
+const gameSource = fs.readFileSync("./game.js", "utf8");
+for (const bossType of bossTypes) {
+  if (!new RegExp("\\b" + bossType + "\\s*:").test(gameSource)) fail("Boss type missing from game.js: " + bossType);
+}
+if (gameSource.includes("if (!bossDefeated || activeBoss)")) ok("Door remains locked until the boss is defeated");
+else fail("Door gate does not enforce boss defeat");
+for (const behavior of ["runner", "flyer", "turret", "sniper", "mine", "shield", "spore", "strafer", "tractor", "mimic", "teleporter", "charger", "boss"]) {
+  if (gameSource.includes('behavior: "' + behavior + '"')) ok("Enemy behavior registered: " + behavior);
+  else fail("Enemy behavior missing: " + behavior);
+}
 
 if (!process.exitCode) console.log("\nALL LEVEL PLAYABILITY CHECKS PASSED!");
 else console.log("\nSOME CHECKS FAILED!");

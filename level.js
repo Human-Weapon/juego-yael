@@ -109,7 +109,9 @@
   }
 
   function put(tiles, tx, ty, id) {
-    if (ty < 0 || ty >= WORLD_H || tx < 0 || tx >= WORLD_W) return;
+    const height = tiles.length;
+    const width = height && tiles[0] ? tiles[0].length : WORLD_W;
+    if (ty < 0 || ty >= height || tx < 0 || tx >= width) return;
     tiles[ty][tx] = id;
   }
 
@@ -156,6 +158,58 @@
       { tileX: 235, tileY: 6 },
     ],
   };
+
+  // Catálogo de campaña. Los mapas existentes se recolocan en los puestos 5,
+  // 15 y 19; el resto se construye con el generador de abajo. Mantener la
+  // progresión aquí evita que la lógica de juego tenga que conocer 20 casos.
+  const CAMPAIGN_LEVELS = [
+    { num: 1, title: "PUERTO EN LLAMAS", theme: "costa", tag: "INTRO · 250 TILES", bossType: "hammer_shark", bossName: "MARTILLO ESCUALO", difficulty: 2, worldW: 250, enemyTypes: ["shark", "piranha"], mechanic: "marea" },
+    { num: 2, title: "ALCANTARILLAS ABISALES", theme: "alcantarilla", tag: "TUNELES · 270 TILES", bossType: "sewer_kraken", bossName: "KRAKEN MENOR", difficulty: 3, worldW: 270, enemyTypes: ["octopus", "eel", "mine"], mechanic: "corriente" },
+    { num: 3, title: "BARRIO SUMERGIDO", theme: "inundado", tag: "RUTAS · 280 TILES", bossType: "siren_warlord", bossName: "SIRENA DE GUERRA", difficulty: 3, worldW: 280, enemyTypes: ["shark", "octopus", "piranha", "sniper"], mechanic: "inundacion" },
+    { num: 4, title: "PUENTE DE MAGMA", theme: "magma", tag: "PERSECUCION · 290 TILES", bossType: "magma_eel_lord", bossName: "ANGUILA VOLCANICA", difficulty: 4, worldW: 290, enemyTypes: ["eel", "crab", "firebat"], mechanic: "puentes" },
+    { num: 5, title: "PROTOCOLO BELMONT", theme: "castillo", tag: "TIERRA · 240 TILES", bossType: "seaking", bossName: "REY MARINO", difficulty: 4, existing: "level1" },
+    { num: 6, title: "ARSENAL CAIDO", theme: "militar", tag: "ASALTO · 280 TILES", bossType: "crab_tank", bossName: "TANQUE CANGREJO", difficulty: 4, worldW: 280, enemyTypes: ["turret", "shield", "mine", "crab"], mechanic: "cobertura" },
+    { num: 7, title: "METRO FANTASMA", theme: "metro", tag: "TUNELES · 300 TILES", bossType: "ferro_worm", bossName: "GUSANO FERRICO", difficulty: 5, worldW: 300, enemyTypes: ["drone", "mine", "sniper", "slime"], mechanic: "trenes" },
+    { num: 8, title: "ASTILLERO DE TORMENTA", theme: "astillero", tag: "GRUAS · 300 TILES", bossType: "admiral_octopus", bossName: "ALMIRANTE PULPO", difficulty: 5, worldW: 300, enemyTypes: ["octopus", "drone", "eel", "turret"], mechanic: "tormenta" },
+    { num: 9, title: "FORTALEZA DE CENIZA", theme: "ceniza", tag: "ASEDIO · 310 TILES", bossType: "ash_golem", bossName: "GOLEM DEL BASTION", difficulty: 5, worldW: 310, enemyTypes: ["shield", "crab", "firebat", "turret"], mechanic: "murallas" },
+    { num: 10, title: "COLISEO DE MAGMA", theme: "coliseo", tag: "ARENA · 320 TILES", bossType: "magma_emperor", bossName: "EMPERADOR CANGREJO", difficulty: 6, worldW: 320, enemyTypes: ["crab", "eel", "firebat", "mine"], mechanic: "oleadas" },
+    { num: 11, title: "PANTANO TOXICO", theme: "toxico", tag: "GAS · 300 TILES", bossType: "spore_hydra", bossName: "HIDRA DE ESPORAS", difficulty: 6, worldW: 300, enemyTypes: ["slime", "spore", "piranha", "mutant"], mechanic: "gas" },
+    { num: 12, title: "PLANTA DE RESIDUOS", theme: "industrial", tag: "PRENSAS · 320 TILES", bossType: "gamma_excavator", bossName: "EXCAVADOR GAMMA", difficulty: 6, worldW: 320, enemyTypes: ["turret", "mine", "drone", "slime", "shield"], mechanic: "prensas" },
+    { num: 13, title: "LABORATORIO FRACTURADO", theme: "laboratorio", tag: "MUTANTES · 310 TILES", bossType: "isotope_doctor", bossName: "DOCTOR ISOTOPO", difficulty: 7, worldW: 310, enemyTypes: ["mutant", "teleporter", "spore", "radstar"], mechanic: "teletransporte" },
+    { num: 14, title: "TREN NUCLEAR", theme: "nuclear", tag: "CONVOY · 330 TILES", bossType: "atomic_locomotive", bossName: "LOCOMOTORA ATOMICA", difficulty: 7, worldW: 330, enemyTypes: ["drone", "shield", "sniper", "mine", "radstar"], mechanic: "convoy" },
+    { num: 15, title: "REACTOR RADIACTIVO", theme: "reactor", tag: "TOXICO · 260 TILES", bossType: "radboss", bossName: "TITAN RADIACTIVO", difficulty: 7, existing: "level2" },
+    { num: 16, title: "DISTRITO DEL APAGON", theme: "apagon", tag: "SOMBRAS · 320 TILES", bossType: "omega_sentinel", bossName: "CENTINELA OMEGA", difficulty: 7, worldW: 320, enemyTypes: ["turret", "drone", "teleporter", "mimic"], mechanic: "oscuridad" },
+    { num: 17, title: "HANGAR ORBITAL", theme: "orbital", tag: "GRAVEDAD · 330 TILES", bossType: "xeno_carrier", bossName: "PORTANAVES XENO", difficulty: 8, worldW: 330, enemyTypes: ["xeno_scout", "drone", "tractor_unit", "sniper"], mechanic: "gravedad" },
+    { num: 18, title: "CIUDAD FLOTANTE", theme: "flotante", tag: "ASCENSO VERTICAL · 136 PISOS", bossType: "tri_oracle", bossName: "ORACULO TRICEFALO", difficulty: 8, vertical: "ascend", enemyTypes: ["xeno_scout", "radstar", "tractor_unit", "firebat"], mechanic: "viento" },
+    { num: 19, title: "TORRE DEL CATACLISMO", theme: "torre", tag: "VERTICAL · 180 TILES", bossType: "alien_ship", bossName: "NAVE NODRIZA", difficulty: 8, existing: "level3" },
+    { num: 20, title: "DIMENSION CERO", theme: "cataclismo", tag: "FINAL · 360 TILES · 4 FASES", bossType: "cataclysm_architect", bossName: "ARQUITECTO DEL CATACLISMO", difficulty: 10, worldW: 360, enemyTypes: ["mimic", "mutant", "xeno_scout", "teleporter", "tractor_unit"], mechanic: "sintesis" },
+  ];
+
+  // Cada nivel nuevo parte de un plano propio. No son simples nombres: route
+  // controla la silueta transitable y encounterPlan define el ritmo de combate.
+  const LEVEL_DESIGNS = {
+    1: { layoutFamily: "muelles-ramificados", visualProfile: "puerto-pesquero-incendiado", arenaPattern: "dique-partido", route: ["docks", "steps", "arches", "towers"], setPieces: ["barco varado", "grua en llamas", "lonja derrumbada", "faro del dique"], encounterPlan: ["pirañas bajo pasarelas", "tiburones entre coberturas", "emboscada en el faro"] },
+    2: { layoutFamily: "tuneles-superpuestos", visualProfile: "alcantarilla-abisal-bioluminiscente", arenaPattern: "cisterna-circular", route: ["tunnels", "basin", "zigzag", "chambers"], setPieces: ["colector roto", "compuertas gemelas", "nido de minas", "gran cisterna"], encounterPlan: ["anguilas en conductos", "minas con corriente", "pulpos desde respiraderos"] },
+    3: { layoutFamily: "tejados-y-canales", visualProfile: "barrio-costero-sumergido", arenaPattern: "plaza-inundada", route: ["islands", "towers", "docks", "canopy"], setPieces: ["mercado anegado", "campanario inclinado", "azoteas conectadas", "plaza de la sirena"], encounterPlan: ["cruce sobre balsas", "francotiradores en azoteas", "asedio desde canales"] },
+    4: { layoutFamily: "persecucion-lineal", visualProfile: "viaducto-volcanico", arenaPattern: "caldera-con-puentes", route: ["rails", "arches", "zigzag", "steps"], setPieces: ["acueducto de lava", "torres de enfriamiento", "puente quebrado", "boca del volcan"], encounterPlan: ["murcielagos sobre magma", "anguilas en el viaducto", "cangrejos de bloqueo"] },
+    6: { layoutFamily: "trincheras-escalonadas", visualProfile: "arsenal-militar-abandonado", arenaPattern: "bunker-cruzado", route: ["trenches", "chambers", "towers", "rails"], setPieces: ["campo de alambradas", "deposito de municion", "bunker alfa", "hangar del tanque"], encounterPlan: ["torretas con cobertura", "minas entre trincheras", "escuadra de escudos"] },
+    7: { layoutFamily: "andenes-paralelos", visualProfile: "metro-oxidado-fantasma", arenaPattern: "terminal-de-vias", route: ["rails", "tunnels", "islands", "trenches"], setPieces: ["anden clausurado", "tren descarrilado", "tunel de servicio", "terminal ferrica"], encounterPlan: ["drones sobre vagones", "minas entre rieles", "francotiradores de anden"] },
+    8: { layoutFamily: "gruas-verticales", visualProfile: "astillero-bajo-tormenta", arenaPattern: "dique-seco", route: ["towers", "docks", "canopy", "arches"], setPieces: ["cascos a medio montar", "grua de contenedores", "muelle de carga", "dique del almirante"], encounterPlan: ["pulpos entre contenedores", "drones alrededor de gruas", "torretas del dique"] },
+    9: { layoutFamily: "asedio-en-anillos", visualProfile: "fortaleza-de-ceniza", arenaPattern: "patio-del-bastion", route: ["trenches", "steps", "arches", "chambers"], setPieces: ["campamento sitiador", "muralla exterior", "torre de ceniza", "patio del bastion"], encounterPlan: ["escudos en la brecha", "torretas de muralla", "murcielagos sobre almenas"] },
+    10: { layoutFamily: "arenas-encadenadas", visualProfile: "coliseo-imperial-de-magma", arenaPattern: "foso-con-gradas", route: ["arches", "basin", "steps", "islands"], setPieces: ["puerta de gladiadores", "foso de bestias", "galeria imperial", "arena del emperador"], encounterPlan: ["oleada de cangrejos", "minas en el foso", "anguilas desde las gradas"] },
+    11: { layoutFamily: "islas-pantanosas", visualProfile: "humedal-toxico-organico", arenaPattern: "nido-de-raices", route: ["islands", "canopy", "basin", "zigzag"], setPieces: ["aldea hundida", "arbol de esporas", "laguna mutagena", "nido de la hidra"], encounterPlan: ["slimes desde el lodo", "esporas en el dosel", "mutantes en la laguna"] },
+    12: { layoutFamily: "cadena-industrial", visualProfile: "planta-de-residuos-gamma", arenaPattern: "prensa-central", route: ["rails", "chambers", "trenches", "towers"], setPieces: ["cintas trituradoras", "silos toxicos", "prensas alternas", "pozo de excavacion"], encounterPlan: ["minas en cintas", "drones entre silos", "escudos bajo prensas"] },
+    13: { layoutFamily: "salas-plegadas", visualProfile: "laboratorio-cuantico-fracturado", arenaPattern: "camara-de-portales", route: ["chambers", "zigzag", "tunnels", "islands"], setPieces: ["sala de contencion", "vivero mutante", "corredor imposible", "camara de isotopos"], encounterPlan: ["mutantes liberados", "teletransportadores cruzados", "esporas de contencion"] },
+    14: { layoutFamily: "convoy-en-marcha", visualProfile: "tren-blindado-nuclear", arenaPattern: "locomotora-abierta", route: ["rails", "steps", "canopy", "trenches"], setPieces: ["vagones cisterna", "coche artillado", "techo del convoy", "locomotora atomica"], encounterPlan: ["drones entre vagones", "francotiradores en techos", "minas de acoplamiento"] },
+    16: { layoutFamily: "calles-en-penumbra", visualProfile: "distrito-electrico-apagado", arenaPattern: "subestacion-omega", route: ["towers", "tunnels", "docks", "chambers"], setPieces: ["avenida sin luz", "edificios puente", "central de respaldo", "subestacion omega"], encounterPlan: ["mimicos en escaparates", "drones de patrulla", "teletransportes en sombras"] },
+    17: { layoutFamily: "hangar-gravedad-variable", visualProfile: "hangar-orbital-xeno", arenaPattern: "bahia-de-lanzamiento", route: ["islands", "rails", "towers", "zigzag"], setPieces: ["esclusa exterior", "anillos de gravedad", "cubierta de cazas", "bahia del portanaves"], encounterPlan: ["exploradores en gravedad baja", "tractores sobre pasarelas", "francotiradores orbitales"] },
+    18: { layoutFamily: "archipielago-aereo", visualProfile: "ciudad-flotante-alienigena", arenaPattern: "templo-de-tres-islas", route: ["islands", "canopy", "arches", "towers"], setPieces: ["jardines suspendidos", "molinos de viento", "puentes de nubes", "templo del oraculo"], encounterPlan: ["exploradores entre islas", "tractores contra el viento", "murcielagos sobre puentes"] },
+    20: { layoutFamily: "realidad-recombinada", visualProfile: "dimension-cero-inestable", arenaPattern: "poliedro-cataclismico", route: ["zigzag", "chambers", "islands", "towers"], setPieces: ["ruinas recombinadas", "mar invertido", "ciudad imposible", "nucleo de dimension cero"], encounterPlan: ["mimicos de otros niveles", "mutantes y xenos combinados", "tractores entre fracturas"] },
+  };
+
+  function campaignLevel(num) {
+    return CAMPAIGN_LEVELS[Math.max(0, Math.min(CAMPAIGN_LEVELS.length - 1, num - 1))];
+  }
 
   function buildLevel1() {
     const tiles = Array.from({ length: WORLD_H }, () => Array(WORLD_W).fill(T.EMPTY));
@@ -259,8 +313,11 @@
       doorX: (cx + 5) * TILE,
       zones: ZONES,
       spawns: SPAWNS,
-      levelNum: 1,
-      name: "NIVEL 1: PROTOCOLO BELMONT",
+      levelNum: 5,
+      name: "NIVEL 5: PROTOCOLO BELMONT",
+      campaign: campaignLevel(5),
+      bossSpawn: { ...SPAWNS.boss, type: "seaking", triggerX: 204 },
+      checkpoints: [52, 104, 156, 196],
     };
   }
 
@@ -398,8 +455,11 @@
       doorX: (cx + 2) * TILE,
       zones: ZONES_L2,
       spawns: SPAWNS_L2,
-      levelNum: 2,
-      name: "NIVEL 2: REACTOR RADIACTIVO",
+      levelNum: 15,
+      name: "NIVEL 15: REACTOR RADIACTIVO",
+      campaign: campaignLevel(15),
+      bossSpawn: { ...SPAWNS_L2.boss, type: "radboss", triggerX: 232 },
+      checkpoints: [58, 116, 174, 220],
     };
   }
 
@@ -569,16 +629,388 @@
       doorY: 19 * TILE,
       zones: ZONES_L3,
       spawns: SPAWNS_L3,
-      levelNum: 3,
+      levelNum: 19,
       isVertical: true,
-      name: "NIVEL 3: TORRE DEL CATACLISMO",
+      name: "NIVEL 19: TORRE DEL CATACLISMO",
+      campaign: campaignLevel(19),
+      bossSpawn: { ...SPAWNS_L3.boss, type: "alien_ship", triggerY: 36 },
+      checkpoints: [166, 142, 118, 90, 62],
+    };
+  }
+
+  function sculptRoute(tiles, tileMeta, design, W, H, gy) {
+    const routeEnd = W - 50;
+    const sectorW = Math.floor(routeEnd / 4);
+    const safePut = (x, y, id, landmark) => {
+      x = Math.round(x);
+      y = Math.round(y);
+      put(tiles, x, y, id);
+      if (landmark && y >= 0 && y < H && x >= 0 && x < W) tileMeta[y][x] = { landmark };
+    };
+
+    design.route.forEach((pattern, sector) => {
+      const start = sector * sectorW + 5;
+      const end = sector === 3 ? routeEnd - 4 : (sector + 1) * sectorW - 4;
+      const mark = design.setPieces[sector];
+
+      if (pattern === "docks") {
+        for (let x = start; x < end; x += 11) {
+          const y = gy - 2 - ((x / 11 + sector) % 2);
+          for (let i = 0; i < 6 && x + i < end; i++) safePut(x + i, y, T.BRIDGE, i === 0 ? mark : null);
+        }
+      } else if (pattern === "steps") {
+        for (let x = start; x < end; x += 10) {
+          const height = 1 + (Math.floor((x - start) / 10) % 3);
+          for (let i = 0; i < 3; i++) for (let h = 1; h <= height; h++) safePut(x + i, gy - h, h === height ? T.CRATE : T.BRICK, i === 0 && h === height ? mark : null);
+        }
+      } else if (pattern === "arches") {
+        for (let x = start; x < end - 7; x += 14) {
+          for (let h = 1; h <= 3; h++) {
+            safePut(x, gy - h, T.CASTLE);
+            safePut(x + 7, gy - h, T.CASTLE);
+          }
+          for (let i = 0; i <= 7; i++) safePut(x + i, gy - 5, T.BRIDGE, i === 3 ? mark : null);
+        }
+      } else if (pattern === "towers") {
+        for (let x = start; x < end - 3; x += 15) {
+          const height = 3 + (Math.floor((x - start) / 15) % 3);
+          for (let i = 0; i < 3; i++) for (let h = 1; h <= height; h++) safePut(x + i, gy - h, T.CASTLE, i === 1 && h === height ? mark : null);
+          for (let i = -3; i < 6; i++) safePut(x + i, gy - height - 1, T.PLATFORM);
+        }
+      } else if (pattern === "tunnels") {
+        for (let x = start; x < end; x++) if ((x - start) % 13 < 9) safePut(x, 5 + sector % 2, T.PIPE, (x - start) === 3 ? mark : null);
+        for (let x = start + 9; x < end; x += 13) for (let h = 1; h <= 2; h++) safePut(x, gy - h, T.PIPE);
+      } else if (pattern === "basin") {
+        for (let x = start; x < end; x += 18) {
+          for (let i = 0; i < 5 && x + i < end; i++) safePut(x + i, gy - 4, T.PLATFORM, i === 2 ? mark : null);
+          for (let i = 8; i < 14 && x + i < end; i++) safePut(x + i, gy - 1, T.BRIDGE);
+        }
+      } else if (pattern === "zigzag") {
+        for (let x = start, n = 0; x < end; x += 8, n++) {
+          const y = gy - (n % 2 ? 5 : 2);
+          for (let i = 0; i < 5 && x + i < end; i++) safePut(x + i, y, T.PLATFORM, i === 2 && n === 1 ? mark : null);
+        }
+      } else if (pattern === "chambers") {
+        for (let x = start; x < end - 9; x += 16) {
+          for (let h = 1; h <= 4; h++) {
+            safePut(x, gy - h, T.BLOCK);
+            safePut(x + 9, gy - h, T.BLOCK);
+          }
+          for (let i = 0; i <= 9; i++) safePut(x + i, gy - 6, T.BLOCK, i === 4 ? mark : null);
+        }
+      } else if (pattern === "islands") {
+        for (let x = start, n = 0; x < end; x += 10, n++) {
+          const y = gy - 2 - (n % 3) * 2;
+          for (let i = 0; i < 6 && x + i < end; i++) safePut(x + i, y, T.GRASS, i === 2 && n === 1 ? mark : null);
+        }
+      } else if (pattern === "canopy") {
+        for (let x = start; x < end; x++) if ((x - start) % 17 < 12) safePut(x, gy - 7, T.GRASS, (x - start) === 5 ? mark : null);
+        for (let x = start + 6; x < end; x += 17) safePut(x, gy - 3, T.PLATFORM);
+      } else if (pattern === "rails") {
+        // Tramos elevados con huecos amplios: evocan vagones/vias sin crear
+        // un techo bajo que encierre al jugador contra la primera cobertura.
+        for (let x = start; x < end; x++) if ((x - start) % 14 < 8) safePut(x, gy - 7, T.BRIDGE, (x - start) === 5 ? mark : null);
+        for (let x = start + 3; x < end; x += 14) safePut(x, gy - 10, T.PLATFORM);
+      } else if (pattern === "trenches") {
+        for (let x = start; x < end; x += 12) {
+          for (let i = 0; i < 3; i++) for (let h = 1; h <= 2; h++) safePut(x + i, gy - h, T.BRICK, i === 1 && h === 2 ? mark : null);
+          for (let i = 6; i < 10 && x + i < end; i++) safePut(x + i, gy - 1, T.BRIDGE);
+        }
+      }
+    });
+  }
+
+  function sculptBossArena(tiles, cfg, arenaStart, gy, W) {
+    const putSafe = (x, y, id) => put(tiles, x, y, id);
+    const block = (x, height, id = T.BRICK, width = 2) => {
+      for (let xx = 0; xx < width; xx++) for (let h = 1; h <= height; h++) putSafe(x + xx, gy - h, id);
+    };
+    const ledge = (x, y, width, id = T.PLATFORM) => {
+      for (let i = 0; i < width; i++) putSafe(x + i, y, id);
+    };
+    const boss = cfg.bossType;
+    // Cada arena utiliza estructuras físicas claras y bajas; las formas
+    // cambian la ruta de esquiva sin bloquear la puerta ni crear colisiones
+    // que no correspondan a un tile dibujado.
+    if (["hammer_shark", "seaking"].includes(boss)) {
+      ledge(arenaStart + 5, gy - 3, 5, T.BRIDGE); ledge(arenaStart + 20, gy - 4, 5, T.BRIDGE);
+    } else if (boss === "sewer_kraken") {
+      block(arenaStart + 6, 2, T.PIPE, 2); block(arenaStart + 24, 2, T.PIPE, 2); ledge(arenaStart + 14, gy - 4, 5);
+    } else if (boss === "siren_warlord") {
+      ledge(arenaStart + 4, gy - 4, 6); ledge(arenaStart + 22, gy - 4, 6); block(arenaStart + 15, 1, T.CRATE, 2);
+    } else if (["magma_eel_lord", "magma_emperor"].includes(boss)) {
+      ledge(arenaStart + 5, gy - 3, 5); ledge(arenaStart + 21, gy - 5, 6); block(arenaStart + 15, 1, T.CRATE, 2);
+    } else if (boss === "crab_tank") {
+      block(arenaStart + 5, 2, T.BRICK, 3); block(arenaStart + 23, 2, T.BRICK, 3); ledge(arenaStart + 14, gy - 4, 5, T.BRIDGE);
+    } else if (boss === "ferro_worm" || boss === "atomic_locomotive") {
+      ledge(arenaStart + 3, gy - 6, 9, T.BRIDGE); ledge(arenaStart + 19, gy - 6, 9, T.BRIDGE); block(arenaStart + 14, 1, T.CRATE, 2);
+    } else if (boss === "admiral_octopus") {
+      ledge(arenaStart + 4, gy - 3, 6, T.BRIDGE); ledge(arenaStart + 21, gy - 3, 6, T.BRIDGE); block(arenaStart + 15, 2, T.CRATE, 2);
+    } else if (boss === "ash_golem") {
+      block(arenaStart + 6, 3, T.CASTLE, 2); block(arenaStart + 23, 3, T.CASTLE, 2); ledge(arenaStart + 14, gy - 5, 5);
+    } else if (boss === "spore_hydra") {
+      block(arenaStart + 6, 2, T.GRASS, 2); block(arenaStart + 24, 2, T.GRASS, 2); ledge(arenaStart + 14, gy - 4, 5);
+    } else if (boss === "gamma_excavator") {
+      block(arenaStart + 5, 2, T.BRICK, 3); block(arenaStart + 23, 2, T.BRICK, 3); ledge(arenaStart + 15, gy - 5, 4, T.BRIDGE);
+    } else if (boss === "isotope_doctor") {
+      block(arenaStart + 6, 2, T.PIPE, 2); block(arenaStart + 24, 2, T.PIPE, 2); ledge(arenaStart + 14, gy - 4, 5);
+    } else if (boss === "omega_sentinel") {
+      block(arenaStart + 5, 2, T.CASTLE, 2); block(arenaStart + 24, 2, T.CASTLE, 2); ledge(arenaStart + 15, gy - 4, 4);
+    } else if (boss === "xeno_carrier") {
+      ledge(arenaStart + 3, gy - 5, 8); ledge(arenaStart + 20, gy - 5, 8); block(arenaStart + 14, 1, T.CRATE, 2);
+    } else if (boss === "tri_oracle") {
+      ledge(arenaStart + 4, gy - 4, 5); ledge(arenaStart + 15, gy - 6, 5); ledge(arenaStart + 25, gy - 4, 4);
+    } else if (boss === "cataclysm_architect") {
+      block(arenaStart + 6, 2, T.CASTLE, 2); block(arenaStart + 23, 2, T.CASTLE, 2); ledge(arenaStart + 14, gy - 5, 5);
+    }
+  }
+
+  // Un segundo mapa vertical de verdad: no recicla la Torre. La ciudad se
+  // recorre por islas escalonadas y balcones alternos; el viento se expresa
+  // con espacios abiertos y plataformas de aterrizaje, no con paredes
+  // invisibles ni saltos imposibles.
+  function buildSkyCityLevel(num) {
+    const cfg = campaignLevel(num);
+    const W = 42;
+    const H = 136;
+    const floorY = 132;
+    const tiles = Array.from({ length: H }, () => Array(W).fill(T.EMPTY));
+    const tileMeta = Array.from({ length: H }, () => Array(W).fill(null));
+    const floors = [120, 108, 96, 84, 72, 60, 48, 36];
+    const verticalBotGoals = [];
+
+    for (let x = 0; x < W; x++) {
+      for (let y = floorY; y < H; y++) tiles[y][x] = y === floorY ? T.GRASS : T.DIRT;
+    }
+    for (let y = 22; y <= floorY; y++) {
+      tiles[y][0] = T.CASTLE;
+      tiles[y][1] = T.CASTLE;
+      tiles[y][W - 2] = T.CASTLE;
+      tiles[y][W - 1] = T.CASTLE;
+    }
+
+    const ledge = (x, y, width, id = T.PLATFORM, landmark) => {
+      for (let i = 0; i < width; i++) {
+        put(tiles, x + i, y, id);
+        if (landmark && i === Math.floor(width / 2)) tileMeta[y][x + i] = { landmark };
+      }
+    };
+    // Escalera aérea continua. Cada salto asciende cuatro tiles y conecta
+    // con el siguiente balcón; el clásico puede terminarla y el Ágil puede
+    // recortar trayectos con su doble salto. Los restos laterales son sólo
+    // decoración/cobertura, no barreras de una pantalla a la otra.
+    // El carril central hace de ascensor de ruinas: es la ruta segura y
+    // legible. Los balcones laterales quedan como desvíos para movilidad y
+    // combate, no como un requisito de precisión horizontal ciega.
+    const stairX = [17, 17, 17, 17];
+    for (let fy = 128, step = 0; fy >= 24; fy -= 4, step++) {
+      const x = stairX[step % stairX.length];
+      ledge(x, fy, 8, T.PLATFORM, step % 6 === 0 ? cfg.title : null);
+      verticalBotGoals.push({ x: (x + 3) * TILE, fy });
+      if (step % 3 === 1) {
+        const decorX = x < 18 ? W - 7 : 3;
+        ledge(decorX, fy + 1, 4, T.BRIDGE);
+        put(tiles, decorX + 1, fy, T.CRATE);
+      }
+    }
+    ledge(17, 20, 8, T.PLATFORM, "PUERTA DEL TEMPLO");
+    verticalBotGoals.push({ x: 20 * TILE, fy: 20 });
+
+    // Santuario del Oráculo: tres islas, cada una con una altura y cobertura
+    // diferente para que los rayos y ecos del jefe tengan contrajuego real.
+    ledge(4, 31, 10, T.BRIDGE, "JARDIN DEL ORACULO");
+    ledge(16, 27, 10, T.PLATFORM, "TEMPLO DE TRES ISLAS");
+    ledge(28, 31, 10, T.BRIDGE, "JARDIN DEL ORACULO");
+    ledge(16, 22, 10, T.PLATFORM);
+    for (let x = 14; x <= 27; x++) tiles[34][x] = T.BRIDGE;
+
+    for (let y = 10; y <= 16; y++) {
+      tiles[y][18] = T.CASTLE;
+      tiles[y][23] = T.CASTLE;
+    }
+    for (let x = 18; x <= 23; x++) tiles[10][x] = T.CASTLE;
+    tiles[16][20] = T.DOOR;
+    tiles[16][21] = T.DOOR;
+    tiles[15][20] = T.DOOR;
+    tiles[15][21] = T.DOOR;
+
+    const enemySpawns = [
+      [20, 122, "firebat"], [8, 114, "xeno_scout"], [31, 102, "tractor_unit"],
+      [10, 91, "radstar"], [30, 79, "xeno_scout"], [8, 68, "firebat"],
+      [31, 56, "tractor_unit"], [12, 45, "radstar"], [29, 38, "xeno_scout"],
+    ].map(([tileX, tileY, type]) => ({ tileX, tileY, type }));
+    const bossSpawn = { tileX: 21, tileY: 29, type: cfg.bossType, label: "ORACULO", triggerY: 35 };
+    return {
+      tiles,
+      tileMeta,
+      lavaSpawns: [],
+      worldW: W,
+      worldH: H,
+      groundY: floorY,
+      doorX: 20 * TILE,
+      doorY: 15 * TILE,
+      zones: [
+        { id: "sky_docks", name: "MUELLES DE NUBES", x0: 0, x1: W },
+        { id: "sky_temple", name: "TEMPLO DEL ORACULO", x0: 0, x1: W },
+      ],
+      spawns: { enemySpawns, boss: bossSpawn },
+      enemySpawns,
+      bossSpawn,
+      checkpoints: [120, 96, 72, 48, 36],
+      verticalFloors: [20, 24, 36, 48, 60, 72, 84, 96, 108, 120, 132],
+      verticalBotGoals,
+      verticalStartY: floorY,
+      verticalHazard: false,
+      levelNum: num,
+      isVertical: true,
+      campaign: cfg,
+      name: `NIVEL ${num}: ${cfg.title}`,
+      theme: cfg.theme,
+      mechanic: cfg.mechanic,
+      design: LEVEL_DESIGNS[num],
+    };
+  }
+
+  function buildGeneratedLevel(num) {
+    const cfg = campaignLevel(num);
+    const W = cfg.worldW || 280;
+    const H = WORLD_H;
+    const gy = H - 3;
+    const tiles = Array.from({ length: H }, () => Array(W).fill(T.EMPTY));
+    const tileMeta = Array.from({ length: H }, () => Array(W).fill(null));
+    const pits = [];
+    const design = LEVEL_DESIGNS[num];
+
+    // Fosos cortos y espaciados: siempre hay una plataforma o puente de
+    // salvamento, pero la distancia entre retos aumenta con la campaña.
+    const pitCount = 5 + Math.floor(num / 4);
+    const gap = Math.max(24, Math.floor((W - 70) / pitCount));
+    for (let i = 0; i < pitCount; i++) {
+      const start = 18 + i * gap + ((num * 11 + i * 7) % 7);
+      const width = 3 + ((num + i * 2) % (num >= 10 ? 5 : 4));
+      if (start + width < W - 55) pits.push([start, start + width]);
+    }
+    const inPit = (x) => pits.some(([a, b]) => x >= a && x < b);
+
+    for (let x = 0; x < W; x++) {
+      const pit = inPit(x);
+      if (pit) {
+        tiles[H - 1][x] = T.LAVA;
+        tiles[H - 2][x] = T.LAVA;
+      } else {
+        tiles[H - 1][x] = T.DIRT;
+        tiles[H - 2][x] = T.DIRT;
+        tiles[gy][x] = T.GRASS;
+      }
+    }
+
+    pits.forEach(([a, b], i) => {
+      const bridgeY = gy - (i % 3 === 0 ? 2 : 1);
+      for (let x = a - 1; x <= b; x++) put(tiles, x, bridgeY, i % 2 ? T.PLATFORM : T.BRIDGE);
+      if (cfg.mechanic === "corriente" || cfg.mechanic === "viento") {
+        for (let x = a; x < b; x++) put(tiles, x, bridgeY - 3, T.PLATFORM);
+      }
+    });
+
+    // Coberturas y cambios de altura. El patrón depende del acto para evitar
+    // que todos los mapas sean una repetición del mismo foso.
+    const obstacleStep = num < 6 ? 34 : num < 11 ? 28 : 24;
+    for (let x = 12; x < W - 58; x += obstacleStep) {
+      if (inPit(x) || inPit(x + 1)) continue;
+      const height = 1 + ((x + num) % (num >= 12 ? 4 : 3));
+      const width = 2 + ((x + num * 3) % 4);
+      for (let bx = x; bx < Math.min(W - 58, x + width); bx++) {
+        for (let h = 1; h <= height; h++) put(tiles, bx, gy - h, h === height && height > 1 ? T.CRATE : T.BRICK);
+      }
+      if (num % 3 === 0) {
+        put(tiles, x + width + 2, gy - height - 1, T.PLATFORM);
+        put(tiles, x + width + 3, gy - height - 1, T.PLATFORM);
+      }
+    }
+
+    // La ruta temática se superpone al terreno seguro y crea una silueta,
+    // lectura vertical y puntos de combate distintos en cada sector.
+    sculptRoute(tiles, tileMeta, design, W, H, gy);
+
+    // Arena aislada y reconocible al final de cada mapa.
+    const arenaStart = W - 48;
+    for (let x = arenaStart; x < W - 7; x++) {
+      tiles[gy][x] = T.BRIDGE;
+      if (x === arenaStart) {
+        for (let y = gy - 1; y >= gy - 4; y--) put(tiles, x, y, T.BRICK);
+      }
+    }
+    const cx = W - 8;
+    for (let y = 5; y <= 10; y++) {
+      put(tiles, cx, y, T.CASTLE);
+      put(tiles, cx + 5, y, T.CASTLE);
+    }
+    for (let x = cx; x <= cx + 5; x++) {
+      put(tiles, x, 5, T.CASTLE);
+      if ((x - cx) % 2 === 0) put(tiles, x, 4, T.CASTLE);
+    }
+    put(tiles, cx + 2, gy - 1, T.DOOR);
+    put(tiles, cx + 3, gy - 1, T.DOOR);
+    put(tiles, cx + 2, gy - 2, T.DOOR);
+    put(tiles, cx + 3, gy - 2, T.DOOR);
+
+    sculptBossArena(tiles, cfg, arenaStart, gy, W);
+
+    const zones = [];
+    const zoneNames = design.setPieces.map((name) => name.toUpperCase()).concat([design.arenaPattern.replace(/-/g, " ").toUpperCase()]);
+    for (let i = 0; i < zoneNames.length; i++) {
+      const x0 = Math.floor((W - 48) * i / 4);
+      const x1 = i === 4 ? W : Math.floor((W - 48) * (i + 1) / 4);
+      zones.push({ id: `l${num}_${i}`, name: `${zoneNames[i]} · ${cfg.title}`, x0, x1 });
+    }
+
+    const enemySpawns = [];
+    const spawnTypes = cfg.enemyTypes || ["shark"];
+    let spawnIndex = 0;
+    for (let x = 28; x < arenaStart - 10; x += Math.max(20, 34 - Math.floor(num / 4))) {
+      let sx = x;
+      for (const [a, b] of pits) if (sx >= a - 2 && sx <= b + 2) sx = b + 3;
+      if (sx >= arenaStart - 10) break;
+      const type = spawnTypes[spawnIndex % spawnTypes.length];
+      const flyer = ["radstar", "firebat", "drone", "xeno_scout", "sniper", "tractor_unit", "teleporter"].includes(type);
+      enemySpawns.push({ tileX: sx, tileY: flyer ? gy - 3 - (spawnIndex % 2) : gy, type });
+      spawnIndex++;
+    }
+
+    const checkpoints = [0.24, 0.48, 0.70, 0.86].map((ratio) => Math.floor((arenaStart - 8) * ratio));
+    const bossTileY = ["xeno_carrier", "tri_oracle", "cataclysm_architect"].includes(cfg.bossType) ? gy - 4 : gy;
+    const generatedBoss = { tileX: W - 25, tileY: bossTileY, type: cfg.bossType, label: "BOSS", triggerX: arenaStart };
+    return {
+      tiles,
+      tileMeta,
+      lavaSpawns: [],
+      worldW: W,
+      worldH: H,
+      groundY: gy,
+      doorX: (cx + 2) * TILE,
+      zones,
+      spawns: { enemySpawns, boss: generatedBoss },
+      enemySpawns,
+      bossSpawn: generatedBoss,
+      checkpoints,
+      levelNum: num,
+      campaign: cfg,
+      name: `NIVEL ${num}: ${cfg.title}`,
+      theme: cfg.theme,
+      mechanic: cfg.mechanic,
+      lavaChase: cfg.bossType === "xeno_carrier",
+      design,
     };
   }
 
   function buildLevel(num) {
-    if (num === 3) return buildLevel3();
-    if (num === 2) return buildLevel2();
-    return buildLevel1();
+    const safeNum = Math.max(1, Math.min(CAMPAIGN_LEVELS.length, Number(num) || 1));
+    const cfg = campaignLevel(safeNum);
+    if (cfg.existing === "level1") return buildLevel1();
+    if (cfg.existing === "level2") return buildLevel2();
+    if (cfg.existing === "level3") return buildLevel3();
+    if (cfg.vertical === "ascend") return buildSkyCityLevel(safeNum);
+    return buildGeneratedLevel(safeNum);
   }
 
   function solid(id) {
@@ -592,13 +1024,15 @@
       id === T.CASTLE ||
       id === T.QBLOCK ||
       id === T.USED ||
-      id === T.BRIDGE ||
       id === T.CRATE
     );
   }
 
   function oneWay(id) {
-    return id === T.PLATFORM;
+    // PLATFORM y BRIDGE se dibujan como superficies delgadas. Ambos deben
+    // comportarse como plataformas de una dirección; tratarlos como cubos
+    // completos crea paredes laterales invisibles de 48 px.
+    return id === T.PLATFORM || id === T.BRIDGE;
   }
 
   function maxJumpHeight() {
@@ -636,9 +1070,12 @@
   exports.ZONES_L2 = ZONES_L2;
   exports.SPAWNS = SPAWNS;
   exports.SPAWNS_L2 = SPAWNS_L2;
+  exports.CAMPAIGN_LEVELS = CAMPAIGN_LEVELS;
+  exports.campaignLevel = campaignLevel;
   exports.buildLevel = buildLevel;
   exports.buildLevel1 = buildLevel1;
   exports.buildLevel2 = buildLevel2;
+  exports.buildLevel3 = buildLevel3;
   exports.solid = solid;
   exports.oneWay = oneWay;
   exports.zoneAt = zoneAt;
