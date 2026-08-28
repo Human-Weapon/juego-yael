@@ -58,7 +58,7 @@
   // mantiene como referencia de control; Ágil gana verticalidad a cambio de
   // supervivencia y Pesado sustituye por completo el salto por escalada.
   const CHARACTERS = [
-    { id: "classic", name: "CLÁSICO", title: "CLÁSICO", maxHp: 5, run: 1, acc: 1, airAcc: 1, jump: -12.1, holdGravity: 0.36, gravity: 0.42, maxFall: 11.2, reloadMultiplier: 1, ammoMultiplier: 1, dashSpeed: 12, dashFrames: 8, dashInv: 30, dashCooldown: 42, climb: false, color: "#ffe29a", description: "5 corazones · salto controlado" },
+    { id: "classic", name: "CLÁSICO", title: "CLÁSICO", maxHp: 7, run: 1, acc: 1, airAcc: 1, jump: -12.1, holdGravity: 0.36, gravity: 0.42, maxFall: 11.2, reloadMultiplier: 1, ammoMultiplier: 1, dashSpeed: 12, dashFrames: 8, dashInv: 30, dashCooldown: 42, climb: false, color: "#ffe29a", description: "7 corazones · salto controlado" },
     { id: "agile", name: "AGIL", title: "SCOUT AGIL", maxHp: 2, run: 2, acc: 2, airAcc: 2, jump: -18, holdGravity: 0.72, gravity: 0.84, maxFall: 22.4, reloadMultiplier: 0.5, ammoMultiplier: 1, dashSpeed: 15, dashFrames: 9, dashInv: 30, dashCooldown: 45, airJumps: 1, climb: false, color: "#5cf6ff", description: "2 corazones · 2× velocidad · doble salto" },
     { id: "heavy", name: "PESADO", title: "ESCALADOR PESADO", maxHp: 16, run: 0.72, acc: 0.78, airAcc: 0.55, jump: 0, holdGravity: 0.4, gravity: 0.45, maxFall: 10, reloadMultiplier: 1, ammoMultiplier: 2, dashSpeed: 19, dashFrames: 26, dashInv: 30, dashCooldown: 150, dashDamage: 42, dashKnockback: 9, climb: true, climbSpeed: 3.1, color: "#ff9f1c", description: "16 corazones · munición doble · escala" },
   ];
@@ -3122,11 +3122,6 @@
       }
     }
 
-    if (time % 180 < 4) {
-      ctx.fillStyle = "rgba(180,200,255,0.12)";
-      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-    }
-
     // Siluetas pintadas del atlas: ruinas, árboles y protecciones anclan cada
     // ruta al tema de su nivel sin añadir cajas de colisión invisibles.
     const sceneryKey = {
@@ -3363,15 +3358,17 @@
     const feetX = p.x + p.w / 2 - cam.x;
     const feetY = p.y + p.h - cam.y;
     const hero = (SPR.heroes && SPR.heroes[p.character]) || SPR.player;
-    let frame = hero.idle;
-    if (p.dashMoveTimer > 0 && hero.dash) frame = hero.dash;
-    else if (p.climbing && hero.climb) frame = hero.climb;
-    else if (p.crouch) frame = hero.crouch;
-    else if (!p.onGround) frame = hero.jump;
-    else if (mouse.left && hero.fire) frame = hero.fire;
+    const fallback = (SPR.player && SPR.player.idle) || hero.idle;
+    const visibleFrame = (candidate) => candidate && candidate.ready !== false ? candidate : fallback;
+    let frame = visibleFrame(hero.idle);
+    if (p.dashMoveTimer > 0 && hero.dash) frame = visibleFrame(hero.dash);
+    else if (p.climbing && hero.climb) frame = visibleFrame(hero.climb);
+    else if (p.crouch) frame = visibleFrame(hero.crouch);
+    else if (!p.onGround) frame = visibleFrame(hero.jump);
+    else if (mouse.left && hero.fire) frame = visibleFrame(hero.fire);
     else if (Math.abs(p.vx) > 0.5) {
-      const runFrames = hero.runFrames || [hero.run1, hero.run2].filter(Boolean);
-      frame = runFrames.length ? runFrames[Math.floor(p.anim) % runFrames.length] : hero.idle;
+      const runFrames = (hero.runFrames || [hero.run1, hero.run2]).filter((candidate) => candidate && candidate.ready !== false);
+      frame = runFrames.length ? runFrames[Math.floor(p.anim) % runFrames.length] : visibleFrame(hero.idle);
     }
 
     ctx.save();

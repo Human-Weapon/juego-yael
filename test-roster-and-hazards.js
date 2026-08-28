@@ -88,7 +88,7 @@ const check = (condition, message, detail) => condition ? console.log("OK  ", me
 const classic = api.roster(0);
 const agile = api.roster(1);
 const heavy = api.roster(2);
-check(classic.hp === 5 && classic.jump < -10 && classic.jump > -14, "Clásico: 5 corazones y salto moderado", JSON.stringify(classic));
+check(classic.hp === 7 && classic.jump < -10 && classic.jump > -14, "Clásico: 7 corazones y salto moderado", JSON.stringify(classic));
 check(agile.hp === 2 && agile.run >= classic.run * 2 && agile.acc >= classic.acc * 1.8 && agile.airAcc >= classic.airAcc * 1.8 && Math.abs(agile.jump) > Math.abs(classic.jump) && agile.gravity >= classic.gravity * 1.8 && agile.maxFall >= classic.maxFall * 1.8, "Ágil: movilidad general duplicada para esquivar", JSON.stringify(agile));
 check(agile.reloadMultiplier === 0.5, "Ágil: recarga 50% más rápida", JSON.stringify(agile));
 check(agile.airJumps === 1 && classic.airJumps === 0 && heavy.airJumps === 0, "Ágil: doble salto exclusivo", JSON.stringify({ agile, classic, heavy }));

@@ -10,7 +10,7 @@ const ctx = new Proxy({}, {
   get(target, key) {
     if (key === "createLinearGradient") return () => gradient;
     if (key === "measureText") return () => ({ width: 0 });
-    if (!(key in target)) target[key] = (...args) => { calls.push({ key, args }); };
+    if (!(key in target)) target[key] = (...args) => { calls.push({ key, args, fillStyle: target.fillStyle, globalAlpha: target.globalAlpha }); };
     return target[key];
   },
   set(target, key, value) { target[key] = value; return true; },
@@ -19,6 +19,8 @@ const ctx = new Proxy({}, {
 const listeners = Object.create(null);
 const classicIdleFrame = { tag: "classic-idle" };
 const unloadedClassicSelectFrame = { tag: "classic-select-unloaded", ready: false };
+const unloadedClassicCrouchFrame = { tag: "classic-crouch-unloaded", ready: false };
+const unloadedClassicRunFrame = { tag: "classic-run-unloaded", ready: false };
 const canvas = {
   style: {}, width: 960, height: 540,
   getContext: () => ctx,
@@ -31,7 +33,7 @@ const windowMock = {
   YAEL_SPRITES: { get: () => ({
     guns: {},
     heroes: {
-      classic: { idle: classicIdleFrame, select: unloadedClassicSelectFrame },
+      classic: { idle: classicIdleFrame, select: unloadedClassicSelectFrame, crouch: unloadedClassicCrouchFrame, runFrames: [unloadedClassicRunFrame] },
     },
   }) },
   innerWidth: 1280,
@@ -57,6 +59,9 @@ const instrumented = source.replace(marker, `  requestAnimationFrame(loop);
     },
     characterSelect(level) { openCharacterSelect(level); },
     play() { startGame(1); player.x = 400; return { state, level: currentLevel, x: player.x }; },
+    crouch() { startGame(1); player.crouch = true; player.onGround = true; },
+    run() { startGame(1); player.onGround = true; player.vx = 5; player.anim = 0; },
+    renderAt(frame) { startGame(1); player.onGround = true; player.vx = 0; time = frame; draw(); },
     session() { return { state, level: currentLevel, x: player && player.x }; },
     tick() { update(); },
     draw() { draw(); },
@@ -128,6 +133,17 @@ ui.mouseDown(750, 96);
 check(ui.session().state === "play" && ui.session().level === 1 && ui.session().x < 200, "el botón REINICIAR reinicia la partida actual");
 ui.mouseDown(888, 96);
 check(ui.menu().state === "menu", "el botón MENÚ vuelve a la selección de nivel");
+ui.crouch();
+calls.length = 0;
+ui.draw();
+check(calls.some((call) => call.key === "drawImage" && call.args[0] === classicIdleFrame), "agacharse conserva un sprite visible mientras carga su pose propia");
+ui.run();
+calls.length = 0;
+ui.draw();
+check(calls.some((call) => call.key === "drawImage" && call.args[0] === classicIdleFrame), "correr conserva un sprite visible mientras carga su ciclo propio");
+calls.length = 0;
+ui.renderAt(180);
+check(!calls.some((call) => call.key === "fillRect" && call.args[0] === 0 && call.args[1] === 0 && call.args[2] === 960 && call.args[3] === 540 && call.fillStyle === "rgba(180,200,255,0.12)"), "el juego no aplica flashes blancos periódicos a pantalla completa");
 
 if (failures) {
   console.error(`\nMENU UI CHECK FAILED: ${failures} problema(s)`);
