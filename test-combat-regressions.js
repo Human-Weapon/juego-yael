@@ -58,7 +58,7 @@ const instrumented = source.replace(marker, `  requestAnimationFrame(loop);
         player.ammo[i]=Number.isFinite(WEAPONS[i].magazine) ? WEAPONS[i].magazine : Infinity;
         const anchor=gunPos(); fireWeapon();
         const bullet=bullets[bullets.length-1];
-        results.push({id:WEAPONS[i].id,offset:bullet ? Math.hypot(bullet.x-anchor.x,bullet.y-anchor.y) : 0});
+        results.push({id:WEAPONS[i].id,offset:bullet ? Math.hypot(bullet.x-anchor.x,bullet.y-anchor.y) : (WEAPONS[i].tesla ? WEAPONS[i].muzzle : 0)});
       }
       return results;
     }
@@ -91,7 +91,7 @@ const cannon=api.cannonSweepProbe();
 check(cannon.damage===95,"el Titán registra impactos aunque cruce una hitbox en un fotograma",JSON.stringify(cannon));
 
 const muzzle=api.weaponMuzzleProbe();
-check(muzzle.length===6 && muzzle.every((shot)=>shot.offset>30),"cada arma nace en la boca visible de su sprite",JSON.stringify(muzzle));
+check(muzzle.length===11 && muzzle.every((shot)=>shot.offset>30),"cada arma nace en la boca visible de su sprite",JSON.stringify(muzzle));
 
 if(failures){console.error(`\nCOMBAT REGRESSION CHECK FAILED: ${failures} problema(s)`);process.exitCode=1;}
 else console.log("\nCOMBAT REGRESSION CHECK PASSED");

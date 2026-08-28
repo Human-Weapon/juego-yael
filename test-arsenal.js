@@ -59,10 +59,17 @@ const a = sandbox.__YAEL_ARSENAL_TEST__;
 let failures = 0;
 const check = (condition, message) => condition ? console.log("OK  ", message) : (failures++, console.error("FAIL", message));
 
-check(a.WEAPONS.length === 6, "hay exactamente seis armas principales");
-check(a.SPECIALS.length === 5, "hay exactamente cinco especiales");
+check(a.WEAPONS.length === 11, "hay once armas principales");
+check(a.SPECIALS.length === 10, "hay diez especiales");
 check(a.WEAPONS.map((w) => w.magazine).slice(0,5).join(",") === "12,24,30,6,1", "los cinco cargadores coinciden con la especificación");
-check(a.WEAPONS[5].heatPerShot > 0 && !Number.isFinite(a.WEAPONS[5].magazine), "la minigun usa calor en vez de cargador");
+const minigunIndex = a.WEAPONS.findIndex((w) => w.id === "minigun");
+check(a.WEAPONS[minigunIndex].heatPerShot > 0 && !Number.isFinite(a.WEAPONS[minigunIndex].magazine), "la minigun usa calor en vez de cargador");
+check(a.WEAPONS.some((w) => w.flame && w.burnFrames > 0 && w.burnDamage > 0), "el lanzallamas aplica quemadura persistente");
+check(a.WEAPONS.some((w) => w.charge && w.pierce > 0), "el rifle de riel usa carga y penetración");
+check(a.WEAPONS.some((w) => w.tesla && w.chainCount >= 2), "la bobina Tesla encadena objetivos");
+check(a.WEAPONS.some((w) => w.ricochet >= 2), "el lanzadiscos rebota en geometría visible");
+check(a.WEAPONS.some((w) => w.freezeFrames > 0), "el cañón criogénico ralentiza enemigos");
+check(a.SPECIALS.some((s) => s.emp && s.radius > 0), "el pulso EMP limpia proyectiles y afecta máquinas");
 check(a.WEAPONS.every((w) => w.muzzle >= 50), "cada arma declara una boca de fuego alineada con su sprite");
 check(a.WEAPONS[0].reload < a.WEAPONS[1].reload && a.WEAPONS[1].reload < a.WEAPONS[2].reload && a.WEAPONS[2].reload < a.WEAPONS[3].reload && a.WEAPONS[3].reload < a.WEAPONS[4].reload, "los tiempos de recarga escalan de Desert a Cañón");
 check(a.WEAPONS[1].falloff && a.WEAPONS[1].falloff.min < 0.5, "el subfusil pierde daño con la distancia");
@@ -79,7 +86,7 @@ check(a.player().reloading, "el cargador vacío inicia recarga automática");
 a.tickPlayer(a.WEAPONS[0].reload + 1);
 check(a.player().ammo[0] === 12 && !a.player().reloading, "la Desert termina su recarga con 12 tiros");
 
-a.setWeapon(5);
+a.setWeapon(minigunIndex);
 for (let i=0;i<40;i++) { a.player().cool=0; a.fire(); }
 check(a.player().overheated && a.player().heat >= 99, "la minigun se sobrecalienta con fuego sostenido");
 
@@ -91,6 +98,10 @@ check(gadgetTypes.has("sticky") && a.gadgets().find((g)=>g.type==="sticky").stic
 check(gadgetTypes.has("hook") && a.gadgets().find((g)=>g.type==="hook").hook, "el gancho crea una cuerda física");
 check(a.player().parryTimer > 0, "la espada abre una ventana de parry");
 check(gadgetTypes.has("inertia_gel") && a.gadgets().find((g)=>g.type==="inertia_gel").gel, "el Gel de inercia genera su efecto propio");
+check(gadgetTypes.has("med_drone") && a.gadgets().find((g)=>g.type==="med_drone").medDrone, "el dron médico deja un aliado persistente");
+check(gadgetTypes.has("time_field") && a.gadgets().find((g)=>g.type==="time_field").timeField, "el campo temporal genera una zona de ralentización");
+check(gadgetTypes.has("holo_decoy") && a.gadgets().find((g)=>g.type==="holo_decoy").decoy, "el señuelo holográfico distrae enemigos");
+check(gadgetTypes.has("return_beacon") && a.gadgets().find((g)=>g.type==="return_beacon").beacon, "la baliza de retorno queda anclada en el mapa");
 
 a.reset();
 check(a.arsenal().unlockedWeapons.join(",") === "0" && a.arsenal().unlockedSpecials.join(",") === "0", "el primer nivel empieza sólo con Desert y granada");
@@ -99,8 +110,8 @@ const countsAfterFirst = a.arsenal().unlockedWeapons.length + a.arsenal().unlock
 const repeatedReward = a.reward(1);
 check(firstReward && countsAfterFirst === 3, "el primer boss entrega exactamente un desbloqueo");
 check(repeatedReward === null && a.arsenal().unlockedWeapons.length + a.arsenal().unlockedSpecials.length === countsAfterFirst, "repetir un nivel no entrega otra recompensa");
-for (let level=2;level<=12;level++) a.reward(level);
-check(a.arsenal().unlockedWeapons.length === 6 && a.arsenal().unlockedSpecials.length === 5, "los bosses terminan desbloqueando todo el arsenal sin duplicados");
+for (let level=2;level<=20;level++) a.reward(level);
+check(a.arsenal().unlockedWeapons.length === 11 && a.arsenal().unlockedSpecials.length === 10, "los bosses terminan desbloqueando todo el arsenal sin duplicados");
 
 a.equipAll();
 a.toggle(0,2); a.toggle(0,3); a.toggle(0,4);

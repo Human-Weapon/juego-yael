@@ -163,26 +163,26 @@
   // 15 y 19; el resto se construye con el generador de abajo. Mantener la
   // progresión aquí evita que la lógica de juego tenga que conocer 20 casos.
   const CAMPAIGN_LEVELS = [
-    { num: 1, title: "PUERTO EN LLAMAS", theme: "costa", tag: "INTRO · 250 TILES", bossType: "hammer_shark", bossName: "MARTILLO ESCUALO", difficulty: 2, worldW: 250, enemyTypes: ["shark", "piranha"], mechanic: "marea" },
+    { num: 1, title: "PUERTO EN LLAMAS", theme: "costa", tag: "INTRO · 250 TILES", bossType: "hammer_shark", bossName: "MARTILLO ESCUALO", difficulty: 2, worldW: 250, enemyTypes: ["shark", "piranha", "skimmer"], mechanic: "marea" },
     { num: 2, title: "ALCANTARILLAS ABISALES", theme: "alcantarilla", tag: "TUNELES · 270 TILES", bossType: "sewer_kraken", bossName: "KRAKEN MENOR", difficulty: 3, worldW: 270, enemyTypes: ["octopus", "eel", "mine"], mechanic: "corriente" },
-    { num: 3, title: "BARRIO SUMERGIDO", theme: "inundado", tag: "RUTAS · 280 TILES", bossType: "siren_warlord", bossName: "SIRENA DE GUERRA", difficulty: 3, worldW: 280, enemyTypes: ["shark", "octopus", "piranha", "sniper"], mechanic: "inundacion" },
+    { num: 3, title: "BARRIO SUMERGIDO", theme: "inundado", tag: "RUTAS · 280 TILES", bossType: "siren_warlord", bossName: "SIRENA DE GUERRA", difficulty: 3, worldW: 280, enemyTypes: ["shark", "octopus", "piranha", "skimmer", "sniper"], mechanic: "inundacion" },
     { num: 4, title: "PUENTE DE MAGMA", theme: "magma", tag: "PERSECUCION · 290 TILES", bossType: "magma_eel_lord", bossName: "ANGUILA VOLCANICA", difficulty: 4, worldW: 290, enemyTypes: ["eel", "crab", "firebat"], mechanic: "puentes" },
     { num: 5, title: "FORTALEZA DEL LITORAL", theme: "castillo", tag: "TIERRA · 240 TILES", bossType: "seaking", bossName: "REY MARINO", difficulty: 4, existing: "level1" },
-    { num: 6, title: "ARSENAL CAIDO", theme: "militar", tag: "ASALTO · 280 TILES", bossType: "crab_tank", bossName: "TANQUE CANGREJO", difficulty: 4, worldW: 280, enemyTypes: ["turret", "shield", "mine", "crab"], mechanic: "cobertura" },
+    { num: 6, title: "ARSENAL CAIDO", theme: "militar", tag: "ASALTO · 280 TILES", bossType: "crab_tank", bossName: "TANQUE CANGREJO", difficulty: 4, worldW: 280, enemyTypes: ["turret", "shield", "mine", "crab", "skimmer"], mechanic: "cobertura" },
     { num: 7, title: "METRO FANTASMA", theme: "metro", tag: "TUNELES · 300 TILES", bossType: "ferro_worm", bossName: "GUSANO FERRICO", difficulty: 5, worldW: 300, enemyTypes: ["drone", "mine", "sniper", "slime"], mechanic: "trenes" },
-    { num: 8, title: "ASTILLERO DE TORMENTA", theme: "astillero", tag: "GRUAS · 300 TILES", bossType: "admiral_octopus", bossName: "ALMIRANTE PULPO", difficulty: 5, worldW: 300, enemyTypes: ["octopus", "drone", "eel", "turret"], mechanic: "tormenta" },
+    { num: 8, title: "ASTILLERO DE TORMENTA", theme: "astillero", tag: "GRUAS · 300 TILES", bossType: "admiral_octopus", bossName: "ALMIRANTE PULPO", difficulty: 5, worldW: 300, enemyTypes: ["octopus", "drone", "eel", "turret", "bombardier"], mechanic: "tormenta" },
     { num: 9, title: "FORTALEZA DE CENIZA", theme: "ceniza", tag: "ASEDIO · 310 TILES", bossType: "ash_golem", bossName: "GOLEM DEL BASTION", difficulty: 5, worldW: 310, enemyTypes: ["shield", "crab", "firebat", "turret"], mechanic: "murallas" },
-    { num: 10, title: "COLISEO DE MAGMA", theme: "coliseo", tag: "ARENA · 320 TILES", bossType: "magma_emperor", bossName: "EMPERADOR CANGREJO", difficulty: 6, worldW: 320, enemyTypes: ["crab", "eel", "firebat", "mine"], mechanic: "oleadas" },
+    { num: 10, title: "COLISEO DE MAGMA", theme: "coliseo", tag: "ARENA · 320 TILES", bossType: "magma_emperor", bossName: "EMPERADOR CANGREJO", difficulty: 6, worldW: 320, enemyTypes: ["crab", "eel", "firebat", "mine", "bombardier"], mechanic: "oleadas" },
     { num: 11, title: "PANTANO TOXICO", theme: "toxico", tag: "GAS · 300 TILES", bossType: "spore_hydra", bossName: "HIDRA DE ESPORAS", difficulty: 6, worldW: 300, enemyTypes: ["slime", "spore", "piranha", "mutant"], mechanic: "gas" },
-    { num: 12, title: "PLANTA DE RESIDUOS", theme: "industrial", tag: "PRENSAS · 320 TILES", bossType: "gamma_excavator", bossName: "EXCAVADOR GAMMA", difficulty: 6, worldW: 320, enemyTypes: ["turret", "mine", "drone", "slime", "shield"], mechanic: "prensas" },
+    { num: 12, title: "PLANTA DE RESIDUOS", theme: "industrial", tag: "PRENSAS · 320 TILES", bossType: "gamma_excavator", bossName: "EXCAVADOR GAMMA", difficulty: 6, worldW: 320, enemyTypes: ["turret", "mine", "drone", "slime", "shield", "bombardier"], mechanic: "prensas" },
     { num: 13, title: "LABORATORIO FRACTURADO", theme: "laboratorio", tag: "MUTANTES · 310 TILES", bossType: "isotope_doctor", bossName: "DOCTOR ISOTOPO", difficulty: 7, worldW: 310, enemyTypes: ["mutant", "teleporter", "spore", "radstar"], mechanic: "teletransporte" },
-    { num: 14, title: "TREN NUCLEAR", theme: "nuclear", tag: "CONVOY · 330 TILES", bossType: "atomic_locomotive", bossName: "LOCOMOTORA ATOMICA", difficulty: 7, worldW: 330, enemyTypes: ["drone", "shield", "sniper", "mine", "radstar"], mechanic: "convoy" },
+    { num: 14, title: "TREN NUCLEAR", theme: "nuclear", tag: "CONVOY · 330 TILES", bossType: "atomic_locomotive", bossName: "LOCOMOTORA ATOMICA", difficulty: 7, worldW: 330, enemyTypes: ["drone", "shield", "sniper", "mine", "radstar", "bombardier"], mechanic: "convoy" },
     { num: 15, title: "REACTOR RADIACTIVO", theme: "reactor", tag: "TOXICO · 260 TILES", bossType: "radboss", bossName: "TITAN RADIACTIVO", difficulty: 7, existing: "level2" },
     { num: 16, title: "DISTRITO DEL APAGON", theme: "apagon", tag: "SOMBRAS · 320 TILES", bossType: "omega_sentinel", bossName: "CENTINELA OMEGA", difficulty: 7, worldW: 320, enemyTypes: ["turret", "drone", "teleporter", "mimic"], mechanic: "oscuridad" },
-    { num: 17, title: "HANGAR ORBITAL", theme: "orbital", tag: "GRAVEDAD · 330 TILES", bossType: "xeno_carrier", bossName: "PORTANAVES XENO", difficulty: 8, worldW: 330, enemyTypes: ["xeno_scout", "drone", "tractor_unit", "sniper"], mechanic: "gravedad" },
+    { num: 17, title: "HANGAR ORBITAL", theme: "orbital", tag: "GRAVEDAD · 330 TILES", bossType: "xeno_carrier", bossName: "PORTANAVES XENO", difficulty: 8, worldW: 330, enemyTypes: ["xeno_scout", "drone", "tractor_unit", "sniper", "bombardier"], mechanic: "gravedad" },
     { num: 18, title: "CIUDAD FLOTANTE", theme: "flotante", tag: "ASCENSO VERTICAL · 136 PISOS", bossType: "tri_oracle", bossName: "ORACULO TRICEFALO", difficulty: 8, vertical: "ascend", enemyTypes: ["xeno_scout", "radstar", "tractor_unit", "firebat"], mechanic: "viento" },
     { num: 19, title: "TORRE DEL CATACLISMO", theme: "torre", tag: "VERTICAL · 180 TILES", bossType: "alien_ship", bossName: "NAVE NODRIZA", difficulty: 8, existing: "level3" },
-    { num: 20, title: "DIMENSION CERO", theme: "cataclismo", tag: "FINAL · 360 TILES · 4 FASES", bossType: "cataclysm_architect", bossName: "ARQUITECTO DEL CATACLISMO", difficulty: 10, worldW: 360, enemyTypes: ["mimic", "mutant", "xeno_scout", "teleporter", "tractor_unit"], mechanic: "sintesis" },
+    { num: 20, title: "DIMENSION CERO", theme: "cataclismo", tag: "FINAL · 360 TILES · 4 FASES", bossType: "cataclysm_architect", bossName: "ARQUITECTO DEL CATACLISMO", difficulty: 10, worldW: 360, enemyTypes: ["mimic", "mutant", "xeno_scout", "teleporter", "tractor_unit", "bombardier"], mechanic: "sintesis" },
   ];
 
   // Cada nivel nuevo parte de un plano propio. No son simples nombres: route
@@ -966,15 +966,23 @@
 
     const enemySpawns = [];
     const spawnTypes = cfg.enemyTypes || ["shark"];
+    const flyingTypes = new Set(["radstar", "firebat", "drone", "xeno_scout", "skimmer", "bombardier", "spore"]);
     let spawnIndex = 0;
-    for (let x = 28; x < arenaStart - 10; x += Math.max(20, 34 - Math.floor(num / 4))) {
+    const encounterGap = Math.max(15, 25 - Math.floor(cfg.difficulty / 2));
+    for (let x = 28; x < arenaStart - 10; x += encounterGap) {
       let sx = x;
       for (const [a, b] of pits) if (sx >= a - 2 && sx <= b + 2) sx = b + 3;
       if (sx >= arenaStart - 10) break;
-      const type = spawnTypes[spawnIndex % spawnTypes.length];
-      const flyer = ["radstar", "firebat", "drone", "xeno_scout", "sniper", "tractor_unit", "teleporter"].includes(type);
-      enemySpawns.push({ tileX: sx, tileY: flyer ? gy - 3 - (spawnIndex % 2) : gy, type });
-      spawnIndex++;
+      const squadSize = cfg.difficulty < 4 ? (spawnIndex % 3 === 2 ? 2 : 1) : cfg.difficulty < 7 ? 2 : 2 + (spawnIndex % 3 === 0 ? 1 : 0);
+      for (let member = 0; member < squadSize; member++) {
+        const type = spawnTypes[(spawnIndex + member) % spawnTypes.length];
+        const flyer = flyingTypes.has(type);
+        const offset = member === 0 ? 0 : member % 2 ? 3 + member : -(3 + member);
+        let memberX = Math.max(5, sx + offset);
+        for (const [a, b] of pits) if (memberX >= a - 1 && memberX <= b + 1) memberX = b + 3;
+        if (memberX < arenaStart - 8) enemySpawns.push({ tileX: memberX, tileY: flyer ? gy - 3 - ((spawnIndex + member) % 3) : gy, type });
+      }
+      spawnIndex += squadSize;
     }
 
     const checkpoints = [0.24, 0.48, 0.70, 0.86].map((ratio) => Math.floor((arenaStart - 8) * ratio));

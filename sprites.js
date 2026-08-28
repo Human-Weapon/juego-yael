@@ -816,8 +816,8 @@ kwwwwww9ffffccccccccccccccccffff9wwwwwwk
       "agile_run_extra1", "agile_run_extra2",
       "heavy_run_extra1", "heavy_run_extra2",
     ], 48, 60, { transparentBackground: true });
-    const classicRunArt = atlasFrames("assets/sprites/heroes-classic-run-v3.png", 2, 1, [
-      "classic_run_extra1", "classic_run_extra2",
+    const classicRunArt = atlasFrames("assets/sprites/heroes-classic-run-v4.png", 3, 1, [
+      "classic_run_extra1", "classic_run_extra2", "classic_run_extra3",
     ], 48, 60, { transparentBackground: true, fitContent: true });
     const heroActionArt = atlasFrames("assets/sprites/heroes-actions-v1.png", 3, 3, [
       "classic_crouch", "classic_dash", "classic_select",
@@ -834,7 +834,7 @@ kwwwwww9ffffccccccccccccccccffff9wwwwwwk
       campaignSprites[type] = { idle: artSet[type], walk: artSet[type + "__walk"], shoot: artSet[type + "__action"] };
     }
     const heroes = {
-      classic: { idle: heroArt.classic_idle, run1: classicRunArt.classic_run_extra1, run2: classicRunArt.classic_run_extra2, run3: classicRunArt.classic_run_extra1, runFrames: [classicRunArt.classic_run_extra1, classicRunArt.classic_run_extra2], jump: heroArt.classic_jump, crouch: heroActionArt.classic_crouch, dash: heroActionArt.classic_dash, select: heroActionArt.classic_select, fire: heroArt.classic_fire },
+      classic: { idle: heroArt.classic_idle, run1: classicRunArt.classic_run_extra1, run2: classicRunArt.classic_run_extra2, run3: classicRunArt.classic_run_extra3, runFrames: [classicRunArt.classic_run_extra1, classicRunArt.classic_run_extra2, classicRunArt.classic_run_extra3], jump: heroArt.classic_jump, crouch: heroActionArt.classic_crouch, dash: heroActionArt.classic_dash, select: heroActionArt.classic_select, fire: heroArt.classic_fire },
       agile: { idle: heroArt.agile_idle, run1: heroArt.agile_run, run2: heroRunArt.agile_run_extra1, run3: heroRunArt.agile_run_extra2, runFrames: [heroArt.agile_run, heroRunArt.agile_run_extra1, heroRunArt.agile_run_extra2], jump: heroArt.agile_jump, crouch: heroActionArt.agile_crouch, dash: heroActionArt.agile_dash, select: heroActionArt.agile_select, fire: heroArt.agile_fire },
       heavy: { idle: heroArt.heavy_idle, run1: heroArt.heavy_run, run2: heroRunArt.heavy_run_extra1, run3: heroRunArt.heavy_run_extra2, runFrames: [heroArt.heavy_run, heroRunArt.heavy_run_extra1, heroRunArt.heavy_run_extra2], jump: heroArt.heavy_climb, crouch: heroActionArt.heavy_crouch, dash: heroActionArt.heavy_dash, select: heroActionArt.heavy_select, fire: heroArt.heavy_fire, climb: heroArt.heavy_climb },
     };

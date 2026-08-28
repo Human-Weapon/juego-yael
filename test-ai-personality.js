@@ -202,6 +202,8 @@ const newCommons = [
   "mutant",
   "teleporter",
   "xeno_scout",
+  "skimmer",
+  "bombardier",
   "tractor_unit",
   "mimic",
 ];

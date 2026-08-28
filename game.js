@@ -46,6 +46,31 @@
       dmg: 6, speed: 19, spread: 0.105, cooldown: 2, magazine: Infinity, reload: 0, automatic: true,
       pellets: 1, muzzle: 66, r: 2.6, kick: 0.12, heatPerShot: 3.4, coolRate: 0.42,
     },
+    {
+      id: "flamethrower", name: "LANZALLAMAS CERBERO", short: "CERBERO", color: "#6f1d1b", accent: "#ffba08",
+      dmg: 8, speed: 10, spread: 0.22, cooldown: 4, magazine: 54, reload: 172, automatic: true,
+      pellets: 2, muzzle: 58, r: 5, kick: 0.08, rangeLife: 20, flame: true, burnDamage: 3, burnFrames: 180,
+    },
+    {
+      id: "railgun", name: "RIFLE DE RIEL LONGINUS", short: "LONGINUS", color: "#243447", accent: "#5cf6ff",
+      dmg: 76, speed: 27, spread: 0.004, cooldown: 56, magazine: 4, reload: 224, automatic: false,
+      pellets: 1, muzzle: 70, r: 5, kick: 2.7, charge: true, chargeFrames: 70, pierce: 3,
+    },
+    {
+      id: "tesla", name: "BOBINA TESLA", short: "TESLA", color: "#3a0ca3", accent: "#b9f6ff",
+      dmg: 21, speed: 1, spread: 0, cooldown: 20, magazine: 14, reload: 158, automatic: false,
+      pellets: 1, muzzle: 58, r: 4, kick: 0.2, tesla: true, chainCount: 3, chainRange: 150,
+    },
+    {
+      id: "sawblade", name: "LANZADISCOS RAZOR", short: "RAZOR", color: "#4a5568", accent: "#e2e8f0",
+      dmg: 34, speed: 14, spread: 0.035, cooldown: 22, magazine: 8, reload: 176, automatic: true,
+      pellets: 1, muzzle: 62, r: 7, kick: 0.7, rangeLife: 92, ricochet: 3,
+    },
+    {
+      id: "cryo", name: "CAÑON CRIOGÉNICO CERO", short: "CERO", color: "#264653", accent: "#a8dadc",
+      dmg: 18, speed: 12, spread: 0.055, cooldown: 11, magazine: 18, reload: 188, automatic: true,
+      pellets: 1, muzzle: 64, r: 6, kick: 0.35, plasma: true, freezeFrames: 110,
+    },
   ];
 
   const SPECIALS = [
@@ -54,6 +79,11 @@
     { id: "hook", name: "GANCHO DE ARRASTRE", short: "GANCHO", color: "#d0d6e0", cooldown: 48, gravity: 0.08, hook: true },
     { id: "sword", name: "ESPADA DE PARADA", short: "PARRY", color: "#ffe600", cooldown: 30, sword: true, dmg: 24, parryFrames: 12 },
     { id: "inertia_gel", name: "GEL DE INERCIA", short: "GEL", color: "#72f1b8", cooldown: 96, gravity: 0.38, gel: true, puddleRadius: 46 },
+    { id: "med_drone", name: "DRON MÉDICO", short: "MED", color: "#72f1b8", cooldown: 390, medDrone: true, duration: 480 },
+    { id: "time_field", name: "CAMPO TEMPORAL", short: "CRONO", color: "#b9f6ff", cooldown: 360, timeField: true, radius: 116, duration: 300 },
+    { id: "holo_decoy", name: "SEÑUELO HOLOGRÁFICO", short: "ECO", color: "#c77dff", cooldown: 300, decoy: true, duration: 360 },
+    { id: "emp", name: "PULSO EMP", short: "EMP", color: "#5cf6ff", cooldown: 260, emp: true, radius: 175 },
+    { id: "return_beacon", name: "BALIZA DE RETORNO", short: "BALIZA", color: "#ffe600", cooldown: 180, beacon: true, duration: 600 },
   ];
 
   // Cada personaje modifica el manejo, no sólo el retrato. El clásico se
@@ -580,10 +610,13 @@
         confirmCharacterSelect();
       }
     } else if (state === "loadout") {
-      if (mouse.y >= 118 && mouse.y < 442) {
+      const LOADOUT_PAGE_SIZE = 5;
+      if (mouse.y >= 118 && mouse.y < 422) {
         const column = mouse.x < VIEW_W / 2 ? 0 : 1;
-        const index = Math.floor((mouse.y - 118) / 52);
+        const row = Math.floor((mouse.y - 118) / 52);
         const max = column === 0 ? WEAPONS.length : SPECIALS.length;
+        const page = column === loadoutColumn ? Math.floor(loadoutCursor / LOADOUT_PAGE_SIZE) : 0;
+        const index = page * LOADOUT_PAGE_SIZE + row;
         if (index >= 0 && index < max) { loadoutColumn = column; loadoutCursor = index; toggleLoadoutItem(column, index); }
       } else if (mouse.y >= 468 && mouse.y <= 516) confirmLoadout();
     }
@@ -634,9 +667,11 @@
       reloadDuration: 0,
       heat: 0,
       overheated: false,
+      railCharge: 0,
       specialCool: 0,
       parryTimer: 0,
       hook: null,
+      beacon: null,
       anim: 0,
       dead: false,
       t: 0,
@@ -744,6 +779,7 @@
     player.weapon = equippedWeapons[(slot + 1) % equippedWeapons.length];
     player.cool = 8;
     player.reloading = false;
+    player.railCharge = 0;
     sfx.switch();
     floatText(player.x, player.y - 20, WEAPONS[player.weapon].short, "#5cf6ff");
   }
@@ -1005,10 +1041,14 @@
       life: extra.life || 50,
       owner: "player",
       plasma: extra.plasma || w.plasma || false,
-      pierce: extra.pierce || 0,
+      pierce: extra.pierce === undefined ? (w.pierce || 0) : extra.pierce,
       explode: extra.explode || 0,
       falloff: extra.falloff || w.falloff || null,
       orangeFire: extra.orangeFire || w.fire || false,
+      burnDamage: extra.burnDamage || 0,
+      burnFrames: extra.burnFrames || 0,
+      freezeFrames: extra.freezeFrames || 0,
+      ricochet: extra.ricochet === undefined ? (w.ricochet || 0) : extra.ricochet,
       color: extra.color || (w.plasma ? "#c77dff" : "#fff3bf"),
       hit: [],
     };
@@ -1016,8 +1056,44 @@
     return bullet;
   }
 
-  function fireWeapon() {
+  function fireTeslaArc(origin, aim, w) {
+    const hit = [];
+    let from = origin;
+    let target = null;
+    for (let chain = 0; chain < w.chainCount; chain++) {
+      let best = null;
+      let bestDist = chain === 0 ? 290 : w.chainRange;
+      for (const en of enemies) {
+        if (en.dead || en.state === "emerge" || hit.includes(en)) continue;
+        const ex = en.x + en.w / 2, ey = en.y + en.h / 2;
+        const d = dist(from.x, from.y, ex, ey);
+        if (d >= bestDist) continue;
+        if (chain === 0) {
+          const offset = Math.abs(Math.atan2(Math.sin(angTo(from.x, from.y, ex, ey) - aim), Math.cos(angTo(from.x, from.y, ex, ey) - aim)));
+          if (offset > 0.62) continue;
+        }
+        best = en;
+        bestDist = d;
+      }
+      if (!best) break;
+      target = best;
+      hit.push(best);
+      hurtEnemy(best, Math.max(4, Math.round(playerDamage(w.dmg) * (chain === 0 ? 1 : 0.72))));
+      const tx = best.x + best.w / 2, ty = best.y + best.h / 2;
+      const sparks = Math.max(4, Math.floor(bestDist / 16));
+      for (let i = 0; i < sparks; i++) {
+        const t = i / Math.max(1, sparks - 1);
+        particles.push({ x: lerp(from.x, tx, t) + rand(-4, 4), y: lerp(from.y, ty, t) + rand(-4, 4), vx: 0, vy: 0, life: 8, max: 8, color: w.accent, s: 3, g: 0 });
+      }
+      burst(tx, ty, w.accent, 5);
+      from = { x: tx, y: ty };
+    }
+    if (!target) burst(origin.x + Math.cos(aim) * 58, origin.y + Math.sin(aim) * 58, w.accent, 5);
+  }
+
+  function fireWeapon(options) {
     const w = WEAPONS[player.weapon];
+    const opts = options || {};
     if (player.cool > 0 || player.reloading || (w.id === "minigun" && player.overheated)) return;
     if (Number.isFinite(w.magazine) && player.ammo[player.weapon] <= 0) {
       beginReload();
@@ -1037,14 +1113,30 @@
     const base = angTo(g.x, g.y, m.x, m.y);
     const muzzle = weaponMuzzlePos(g, base);
     shake = Math.max(shake, w.kick * 3);
+    if (w.tesla) {
+      fireTeslaArc(muzzle, base, w);
+      sfx.shoot(w);
+      burst(muzzle.x, muzzle.y, w.accent, 7);
+      if (Number.isFinite(w.magazine) && player.ammo[player.weapon] <= 0) beginReload();
+      return;
+    }
+    const chargeRatio = w.charge ? clamp(opts.chargeRatio || 0, 0.18, 1) : 1;
+    const chargedDamage = w.charge ? Math.round(w.dmg * lerp(0.5, 1.85, chargeRatio)) : w.dmg;
     for (let i = 0; i < w.pellets; i++) {
       const shotAngle = base + rand(-w.spread, w.spread);
       const shotMuzzle = weaponMuzzlePos(g, shotAngle);
       const shot = spawnBullet(shotMuzzle.x, shotMuzzle.y, shotAngle, {
+        dmg: chargedDamage,
+        speed: w.charge ? w.speed * lerp(0.62, 1.12, chargeRatio) : w.speed,
         life: w.rangeLife || (w.id === "cannon" ? 80 : 55),
         explode: w.explode || 0,
-        color: w.fire ? (i % 2 ? "#ff3c00" : "#ffba08") : undefined,
-        orangeFire: !!w.fire,
+        pierce: w.charge ? Math.max(1, Math.round((w.pierce || 1) * chargeRatio)) : w.pierce || 0,
+        color: w.flame || w.fire ? (i % 2 ? "#ff3c00" : "#ffba08") : (w.charge ? w.accent : undefined),
+        orangeFire: !!w.fire || !!w.flame,
+        burnDamage: w.flame ? w.burnDamage : 0,
+        burnFrames: w.flame ? w.burnFrames : 0,
+        freezeFrames: w.freezeFrames || 0,
+        ricochet: w.ricochet || 0,
       });
       // El primer tramo cubre también el cuerpo del arma. Esto evita que un
       // enemigo pegado al jugador quede detrás de la boca y parezca atravesado
@@ -1058,6 +1150,16 @@
     if (Number.isFinite(w.magazine) && player.ammo[player.weapon] <= 0) beginReload();
   }
 
+  function clearTileLine(x0, y0, x1, y1) {
+    const steps = Math.max(1, Math.ceil(dist(x0, y0, x1, y1) / (TILE * 0.32)));
+    for (let i = 1; i < steps; i++) {
+      const t = i / steps;
+      const id = tileAt(Math.floor(lerp(x0, x1, t) / TILE), Math.floor(lerp(y0, y1, t) / TILE));
+      if (solid(id) || id === T.DOOR) return false;
+    }
+    return true;
+  }
+
   function useSpecial() {
     const s = SPECIALS[player.special];
     if (!s || player.specialCool > 0 || player.dead) return;
@@ -1065,6 +1167,65 @@
     const m = mouseWorld();
     const aim = angTo(g.x, g.y, m.x, m.y);
     player.specialCool = s.cooldown;
+    if (s.medDrone) {
+      gadgets.push({ type: s.id, medDrone: true, x: player.x + player.w / 2, y: player.y - 12, r: 12, life: s.duration, healTimer: 36, color: s.color });
+      floatText(player.x, player.y - 24, "DRON MEDICO ACTIVO", s.color);
+      sfx.special();
+      return;
+    }
+    if (s.timeField) {
+      const maxRange = 250;
+      const targetDist = Math.min(maxRange, dist(g.x, g.y, m.x, m.y));
+      gadgets.push({ type: s.id, timeField: true, x: g.x + Math.cos(aim) * targetDist, y: g.y + Math.sin(aim) * targetDist, r: s.radius, life: s.duration, color: s.color });
+      floatText(player.x, player.y - 24, "CAMPO TEMPORAL", s.color);
+      sfx.special();
+      return;
+    }
+    if (s.decoy) {
+      gadgets.push({ type: s.id, decoy: true, x: player.x + player.w / 2, y: player.y + player.h / 2, r: 16, life: s.duration, pulse: 0, color: s.color });
+      floatText(player.x, player.y - 24, "SEÑUELO DESPLEGADO", s.color);
+      sfx.special();
+      return;
+    }
+    if (s.emp) {
+      const px = player.x + player.w / 2, py = player.y + player.h / 2;
+      for (const b of bullets) if (b.owner === "enemy" && dist(px, py, b.x, b.y) <= s.radius) b.life = 0;
+      for (const en of enemies) {
+        const def = ENEMY_TYPES[en.type];
+        if (!en.dead && def && def.mechanical && dist(px, py, en.x + en.w / 2, en.y + en.h / 2) <= s.radius) {
+          en.stunTimer = Math.max(en.stunTimer || 0, def.boss ? 24 : 120);
+          burst(en.x + en.w / 2, en.y + en.h / 2, s.color, 7);
+        }
+      }
+      burst(px, py, s.color, 28);
+      floatText(px, py - 28, "PULSO EMP", s.color);
+      sfx.special();
+      return;
+    }
+    if (s.beacon) {
+      if (player.beacon && gadgets.includes(player.beacon)) {
+        const b = player.beacon;
+        const px = player.x + player.w / 2, py = player.y + player.h / 2;
+        if (dist(px, py, b.x, b.y) <= 540 && clearTileLine(px, py, b.x, b.y)) {
+          player.x = b.x - player.w / 2;
+          player.y = b.y - player.h / 2;
+          player.vx = 0;
+          player.vy = -1;
+          burst(b.x, b.y, s.color, 18);
+          floatText(b.x, b.y - 24, "RETORNO", s.color);
+          b.life = 0;
+        } else {
+          floatText(px, py - 24, "BALIZA BLOQUEADA", "#ef233c");
+        }
+      } else {
+        const beacon = { type: s.id, beacon: true, x: player.x + player.w / 2, y: player.y + player.h / 2, r: 12, life: s.duration, color: s.color };
+        gadgets.push(beacon);
+        player.beacon = beacon;
+        floatText(beacon.x, beacon.y - 24, "BALIZA ANCLADA", s.color);
+      }
+      sfx.special();
+      return;
+    }
     if (s.sword) {
       player.parryTimer = s.parryFrames;
       const reach = 62;
@@ -1095,6 +1256,38 @@
     for (const g of gadgets) {
       g.life--;
       if (g.fuse > 0) g.fuse--;
+
+      if (g.medDrone) {
+        const tx = player.x + player.w / 2 + player.facing * 26;
+        const ty = player.y - 16 + Math.sin(time * 0.12) * 8;
+        g.x = lerp(g.x, tx, 0.13);
+        g.y = lerp(g.y, ty, 0.13);
+        g.healTimer--;
+        if (g.healTimer <= 0 && !player.dead && player.hp < player.maxHp) {
+          player.hp++;
+          g.healTimer = 54;
+          floatText(player.x + player.w / 2, player.y - 16, "+VIDA", g.color);
+          burst(g.x, g.y, g.color, 6);
+        }
+        continue;
+      }
+      if (g.timeField) {
+        for (const en of enemies) {
+          if (!en.dead && dist(g.x, g.y, en.x + en.w / 2, en.y + en.h / 2) <= g.r) en.timeSlowTimer = Math.max(en.timeSlowTimer || 0, 8);
+        }
+        for (const b of bullets) if (b.owner === "enemy" && dist(g.x, g.y, b.x, b.y) <= g.r) b.timeSlowTimer = Math.max(b.timeSlowTimer || 0, 8);
+        if (time % 5 === 0) particles.push({ x: g.x + rand(-g.r, g.r), y: g.y + rand(-g.r, g.r), vx: 0, vy: 0, life: 10, max: 10, color: g.color, s: 3, g: 0 });
+        continue;
+      }
+      if (g.decoy) {
+        g.pulse = (g.pulse || 0) + 1;
+        if (g.pulse % 28 === 0) burst(g.x, g.y, g.color, 5);
+        continue;
+      }
+      if (g.beacon) {
+        if (time % 16 === 0) burst(g.x, g.y, g.color, 3);
+        continue;
+      }
 
       if (g.state === "stuckEnemy" && g.target && !g.target.dead) {
         g.x = g.target.x + g.target.w / 2;
@@ -1177,6 +1370,7 @@
     }
     gadgets = gadgets.filter((g) => g.life > 0 && g.y < worldH * TILE + 160);
     if (player.hook && !gadgets.includes(player.hook)) player.hook = null;
+    if (player.beacon && !gadgets.includes(player.beacon)) player.beacon = null;
   }
 
   function explode(x, y, r, dmg) {
@@ -1210,16 +1404,18 @@
     alien_ship: { name: "Nave Nodriza Alienigena", hp: 1200, w: 128, h: 64, speed: 2.2, dmg: 2, score: 9000, boss: true, flying: true },
     piranha: { name: "Piraña de Puerto", hp: 22, w: 30, h: 22, speed: 2.35, dmg: 1, score: 170, behavior: "runner", color: "#f4d35e" },
     firebat: { name: "Murcielago de Fuego", hp: 24, w: 34, h: 24, speed: 1.7, dmg: 1, score: 220, flying: true, behavior: "flyer", color: "#ff6b35" },
-    turret: { name: "Torreta Centinela", hp: 52, w: 34, h: 38, speed: 0, dmg: 1, score: 260, behavior: "turret", color: "#94d2bd" },
-    shield: { name: "Guardia de Escudo", hp: 74, w: 30, h: 36, speed: 0.58, dmg: 2, score: 360, behavior: "shield", color: "#5cf6ff" },
-    mine: { name: "Mina Perseguidora", hp: 18, w: 24, h: 24, speed: 1.65, dmg: 2, score: 190, behavior: "mine", color: "#ffba08" },
-    drone: { name: "Dron de Asalto", hp: 34, w: 36, h: 26, speed: 1.4, dmg: 1, score: 280, flying: true, behavior: "shooter", color: "#c77dff" },
-    sniper: { name: "Francotirador de Plasma", hp: 30, w: 28, h: 38, speed: 0.3, dmg: 2, score: 330, behavior: "sniper", color: "#00f0ff" },
+    turret: { name: "Torreta Centinela", hp: 52, w: 34, h: 38, speed: 0, dmg: 1, score: 260, behavior: "turret", mechanical: true, color: "#94d2bd" },
+    shield: { name: "Guardia de Escudo", hp: 74, w: 30, h: 36, speed: 0.58, dmg: 2, score: 360, behavior: "shield", mechanical: true, color: "#5cf6ff" },
+    mine: { name: "Mina Perseguidora", hp: 18, w: 24, h: 24, speed: 1.65, dmg: 2, score: 190, behavior: "mine", mechanical: true, color: "#ffba08" },
+    drone: { name: "Dron de Asalto", hp: 34, w: 36, h: 26, speed: 1.4, dmg: 1, score: 280, flying: true, behavior: "shooter", mechanical: true, color: "#c77dff" },
+    sniper: { name: "Francotirador de Plasma", hp: 30, w: 28, h: 38, speed: 0.3, dmg: 2, score: 330, behavior: "sniper", mechanical: true, color: "#00f0ff" },
     slime: { name: "Limo Radiactivo", hp: 48, w: 38, h: 24, speed: 0.52, dmg: 1, score: 240, behavior: "split", color: "#70e000" },
     spore: { name: "Espora Flotante", hp: 26, w: 30, h: 30, speed: 0.8, dmg: 1, score: 270, flying: true, behavior: "spore", color: "#ccff33" },
     mutant: { name: "Mutante Inestable", hp: 68, w: 44, h: 42, speed: 1.1, dmg: 2, score: 420, behavior: "charger", color: "#ff3c00" },
     teleporter: { name: "Saltador Cuantico", hp: 38, w: 32, h: 38, speed: 1.1, dmg: 1, score: 390, behavior: "teleporter", color: "#e0aaff" },
     xeno_scout: { name: "Explorador Xeno", hp: 42, w: 36, h: 30, speed: 1.75, dmg: 1, score: 360, flying: true, behavior: "strafer", color: "#5cf6ff" },
+    skimmer: { name: "Ala Rastrera", hp: 20, w: 30, h: 20, speed: 2.25, dmg: 1, score: 210, flying: true, behavior: "flyer", color: "#f4d35e" },
+    bombardier: { name: "Bombardero de Escoria", hp: 36, w: 40, h: 26, speed: 1.15, dmg: 1, score: 330, flying: true, behavior: "bomber", mechanical: true, color: "#ff7b00" },
     tractor_unit: { name: "Unidad Tractora", hp: 58, w: 36, h: 36, speed: 0.7, dmg: 1, score: 460, behavior: "tractor", color: "#bde0fe" },
     mimic: { name: "Mimico de Portal", hp: 64, w: 42, h: 38, speed: 1.3, dmg: 2, score: 520, behavior: "mimic", color: "#ff7b00" },
     hammer_shark: { name: "Martillo Escualo", hp: 420, w: 86, h: 58, speed: 1.2, dmg: 2, score: 2400, boss: true, behavior: "boss", bossPattern: "hammer", color: "#ff6b35" },
@@ -1785,7 +1981,15 @@
       if (mouse.rightClick) useSpecial();
 
       const w = WEAPONS[p.weapon];
-      if (mouse.left) {
+      if (w.charge) {
+        if (mouse.left && !p.reloading && p.cool <= 0) {
+          p.railCharge = Math.min(w.chargeFrames, p.railCharge + 1);
+          if (p.railCharge % 8 === 0) burst(gunPos().x, gunPos().y, w.accent, 2);
+        } else if (!mouse.left && p.railCharge > 0) {
+          fireWeapon({ chargeRatio: p.railCharge / w.chargeFrames });
+          p.railCharge = 0;
+        }
+      } else if (mouse.left) {
         if (w.automatic) fireWeapon();
         else if (mouse.leftClick) fireWeapon();
       }
@@ -2060,7 +2264,7 @@
   function genericEnemyUpdate(en, def, dx, pcx, pcy, ecx, ecy) {
     const aim = predictiveAim(ecx, ecy, 6, 18);
     const behavior = def.behavior;
-    const pace = def.speed * (en.aggression || 1);
+    const pace = def.speed * (en.aggression || 1) * (en.freezeTimer > 0 ? 0.42 : en.timeSlowTimer > 0 ? 0.58 : 1);
     en.facing = dx >= 0 ? 1 : -1;
 
     if (behavior === "boss") {
@@ -2134,6 +2338,19 @@
         spawnEnemyBullet(ecx, en.y + 12, shotAim, shot);
         if (behavior === "turret") spawnEnemyBullet(ecx, en.y + 12, aim + 0.16, shot);
         en.cool = behavior === "sniper" ? 110 : 72;
+      }
+      return;
+    }
+
+    if (behavior === "bomber") {
+      const targetY = clamp(pcy - 150 + Math.sin(en.t * 0.045) * 32, TILE * 2, Math.max(3 * TILE, (groundY - 5) * TILE));
+      en.x += Math.sign(dx) * pace * (Math.abs(dx) > 230 ? 0.7 : -0.16);
+      en.y = lerp(en.y, targetY, 0.04);
+      en.lastDecision = en.cool <= 0 && Math.abs(dx) < 460 ? "drop_bomb" : "line_up_bombing";
+      if (en.cool <= 0 && Math.abs(dx) < 460) {
+        const dropAim = angTo(ecx, ecy, pcx + player.vx * 12, pcy);
+        spawnEnemyBullet(ecx, ecy, dropAim, { dmg: 1, speed: 4.1, r: 8, life: 105, color: def.color, explode: 28, orangeFire: true });
+        en.cool = 126;
       }
       return;
     }
@@ -2445,6 +2662,7 @@
   }
 
   function updateEnemies() {
+    const activeDecoy = gadgets.find((g) => g.decoy && g.life > 0);
     for (const en of enemies) {
       if (en.dead) {
         en.t++;
@@ -2457,6 +2675,17 @@
       en.anim += 0.18;
       if (en.flash > 0) en.flash--;
       const def = ENEMY_TYPES[en.type];
+
+      if (en.burnTimer > 0) {
+        en.burnTimer--;
+        if (en.burnTimer % 24 === 0) {
+          hurtEnemy(en, en.burnDamage || 1);
+          burst(en.x + en.w / 2, en.y + en.h * 0.45, "#ff7b00", 4);
+          if (en.dead) continue;
+        }
+      }
+      if (en.freezeTimer > 0) en.freezeTimer--;
+      if (en.timeSlowTimer > 0) en.timeSlowTimer--;
 
       if (en.slipTimer > 0) {
         en.slipTimer--;
@@ -2483,8 +2712,9 @@
         continue;
       }
 
-      const pcx = player.x + player.w / 2;
-      const pcy = player.y + player.h / 2;
+      const useDecoy = activeDecoy && !def.boss && dist(en.x + en.w / 2, en.y + en.h / 2, activeDecoy.x, activeDecoy.y) < 520;
+      const pcx = useDecoy ? activeDecoy.x : player.x + player.w / 2;
+      const pcy = useDecoy ? activeDecoy.y : player.y + player.h / 2;
       const ecx = en.x + en.w / 2;
       const ecy = en.y + en.h / 2;
       const dx = pcx - ecx;
@@ -2862,9 +3092,11 @@
     for (const b of bullets) {
       b.prevX = b.x;
       b.prevY = b.y;
-      b.x += b.vx;
-      b.y += b.vy;
+      const timeFactor = b.timeSlowTimer > 0 ? 0.42 : 1;
+      b.x += b.vx * timeFactor;
+      b.y += b.vy * timeFactor;
       b.life--;
+      if (b.timeSlowTimer > 0) b.timeSlowTimer--;
       if (b.plasma) {
         b.vy *= 0.99;
         particles.push({ x: b.x, y: b.y, vx: 0, vy: 0, life: 8, max: 8, color: b.color, s: b.r, g: 0 });
@@ -2897,9 +3129,21 @@
         }
       }
       if (hitTile) {
-        b.life = 0;
-        if (b.explode) explode(b.x, b.y, b.explode, b.dmg);
-        else burst(b.x, b.y, b.color, 4);
+        if (b.ricochet > 0) {
+          b.ricochet--;
+          b.x = b.prevX;
+          b.y = b.prevY;
+          const horizontalHit = tilesTouching({ x: b.x + Math.sign(b.vx) * b.r, y: b.y - b.r * 0.5, w: b.r, h: b.r }).some((t) => solid(t.id) || t.id === T.DOOR);
+          if (horizontalHit) b.vx *= -1;
+          else b.vy *= -1;
+          b.vx *= 0.92;
+          b.vy *= 0.92;
+          burst(b.x, b.y, b.color, 7);
+        } else {
+          b.life = 0;
+          if (b.explode) explode(b.x, b.y, b.explode, b.dmg);
+          else burst(b.x, b.y, b.color, 4);
+        }
         continue;
       }
       if (b.owner === "player") {
@@ -2914,6 +3158,16 @@
               impactDamage = Math.max(1, Math.round(b.dmg * lerp(1, b.falloff.min, ratio)));
             }
             hurtEnemy(en, impactDamage);
+            if (b.burnFrames) {
+              en.burnTimer = Math.max(en.burnTimer || 0, b.burnFrames);
+              en.burnDamage = Math.max(en.burnDamage || 0, b.burnDamage || 1);
+              floatText(en.x + en.w / 2, en.y - 14, "QUEMADURA", "#ff7b00");
+            }
+            if (b.freezeFrames) {
+              const freeze = ENEMY_TYPES[en.type] && ENEMY_TYPES[en.type].boss ? Math.floor(b.freezeFrames * 0.35) : b.freezeFrames;
+              en.freezeTimer = Math.max(en.freezeTimer || 0, freeze);
+              floatText(en.x + en.w / 2, en.y - 14, "CONGELADO", "#a8dadc");
+            }
             b.hit.push(en);
             burst(b.x, b.y, b.color, 6);
             if (b.explode) {
@@ -3063,10 +3317,10 @@
       for (const s of lavaSpawns) {
         if (s.x < cam.x - 60 || s.x > cam.x + VIEW_W + 60) continue;
         s.t--;
-        if (s.t <= 0 && alive < 7) {
-          const types = ["shark", "octopus", "eel", "crab"];
+        if (s.t <= 0 && alive < (currentLevel >= 15 ? 10 : 8)) {
+          const types = ["shark", "octopus", "eel", "crab", "piranha"];
           spawnEnemy(types[irand(0, types.length - 1)], s.x + rand(-24, 24), s.y);
-          s.t = irand(100, 200);
+          s.t = irand(76, 150);
         }
       }
     }
@@ -3792,7 +4046,30 @@
   function drawGadgets() {
     for (const g of gadgets) {
       const x = g.x - cam.x, y = g.y - cam.y;
-      if (g.hook) {
+      if (g.medDrone) {
+        ctx.save();
+        ctx.strokeStyle = g.color; ctx.fillStyle = "#141820"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = "#fff"; ctx.fillRect(x - 2, y - 6, 4, 12); ctx.fillRect(x - 6, y - 2, 12, 4);
+        ctx.restore();
+      } else if (g.timeField) {
+        ctx.save();
+        ctx.globalAlpha = 0.18 + Math.sin(time * 0.16) * 0.05;
+        ctx.fillStyle = g.color; ctx.beginPath(); ctx.arc(x, y, g.r, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 0.9; ctx.strokeStyle = g.color; ctx.lineWidth = 2; ctx.setLineDash([6, 5]); ctx.beginPath(); ctx.arc(x, y, g.r, 0, Math.PI * 2); ctx.stroke();
+        ctx.restore();
+      } else if (g.decoy) {
+        ctx.save();
+        ctx.globalAlpha = 0.45 + Math.sin(time * 0.2) * 0.2;
+        ctx.strokeStyle = g.color; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, g.r + 5, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = g.color; ctx.fillRect(x - 5, y - 12, 10, 24); ctx.fillRect(x - 11, y - 3, 22, 5);
+        ctx.restore();
+      } else if (g.beacon) {
+        ctx.save();
+        ctx.fillStyle = "#10151a"; ctx.strokeStyle = g.color; ctx.lineWidth = 2; ctx.fillRect(x - 5, y - 18, 10, 18); ctx.strokeRect(x - 5, y - 18, 10, 18);
+        ctx.globalAlpha = 0.28 + Math.sin(time * 0.16) * 0.14; ctx.fillStyle = g.color; ctx.beginPath(); ctx.arc(x, y - 18, 16, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      } else if (g.hook) {
         ctx.strokeStyle = "rgba(208,214,224,.8)"; ctx.lineWidth = 2; ctx.beginPath();
         ctx.moveTo(player.x + player.w / 2 - cam.x, player.y + player.h / 2 - cam.y); ctx.lineTo(x, y); ctx.stroke();
         ctx.fillStyle = g.color; ctx.beginPath(); ctx.moveTo(x + 8, y); ctx.lineTo(x - 6, y - 7); ctx.lineTo(x - 3, y); ctx.lineTo(x - 6, y + 7); ctx.closePath(); ctx.fill();
@@ -3881,7 +4158,7 @@
     ctx.fillText("VIDAS " + lives, 180, 54);
     ctx.fillStyle = w.accent;
     const capacity = magazineCapacity(w, p.move);
-    const ammoText = w.id === "minigun" ? "CALOR " + Math.round(p.heat) + "%" : p.ammo[p.weapon] + "/" + capacity + (p.reloading ? " · RECARGANDO" : " · RESERVA ∞");
+    const ammoText = w.id === "minigun" ? "CALOR " + Math.round(p.heat) + "%" : w.charge && p.railCharge > 0 ? "CARGA " + Math.round(p.railCharge / w.chargeFrames * 100) + "%" : p.ammo[p.weapon] + "/" + capacity + (p.reloading ? " · RECARGANDO" : " · RESERVA ∞");
     ctx.fillText(w.short + "  " + ammoText, 24, 76);
 
     if (p.stunTimer > 0) {
@@ -3903,7 +4180,7 @@
     ctx.fillText("E arma · Q especial · R recarga", VIEW_W - 24, 48);
     ctx.fillStyle = "#222";
     ctx.fillRect(VIEW_W - 256, 56, 232, 10);
-    const weaponRatio = w.id === "minigun" ? p.heat / 100 : (p.reloading ? 1 - p.reloadTimer / Math.max(1, p.reloadDuration) : p.ammo[p.weapon] / capacity);
+    const weaponRatio = w.id === "minigun" ? p.heat / 100 : w.charge && p.railCharge > 0 ? p.railCharge / w.chargeFrames : (p.reloading ? 1 - p.reloadTimer / Math.max(1, p.reloadDuration) : p.ammo[p.weapon] / capacity);
     ctx.fillStyle = p.overheated ? "#ef233c" : (p.reloading ? "#ffe600" : w.accent);
     ctx.fillRect(VIEW_W - 256, 56, 232 * clamp(weaponRatio, 0, 1), 10);
     const special = SPECIALS[p.special];
@@ -4577,12 +4854,17 @@
     ctx.fillText("ELIGE HASTA 2 ARMAS PRINCIPALES Y 2 ESPECIALES · ESPACIO/CLIC EQUIPA", VIEW_W / 2, 69);
     if (pendingReward) { ctx.fillStyle = pendingReward.kind === "weapon" ? "#5cf6ff" : "#72f1b8"; ctx.font = "bold 11px Courier New"; ctx.fillText("NUEVO DESBLOQUEO: " + pendingReward.name, VIEW_W / 2, 88); }
 
+    const pageSize = 5;
     const drawColumn = (items, unlocked, equipped, column, x, width) => {
+      const pageCount = Math.ceil(items.length / pageSize);
+      const page = column === loadoutColumn ? Math.floor(loadoutCursor / pageSize) : 0;
+      const first = page * pageSize;
+      const last = Math.min(items.length, first + pageSize);
       ctx.textAlign = "left"; ctx.fillStyle = column === 0 ? "#ffe29a" : "#72f1b8"; ctx.font = "bold 14px Courier New";
       ctx.fillText(column === 0 ? "ARMAS PRINCIPALES  " + equipped.length + "/2" : "ESPECIALES  " + equipped.length + "/2", x, 108);
-      for (let i = 0; i < items.length; i++) {
+      for (let i = first; i < last; i++) {
         const item = items[i], open = unlocked.includes(i), active = equipped.includes(i), selected = loadoutColumn === column && loadoutCursor === i;
-        const y = 118 + i * 52;
+        const y = 118 + (i - first) * 52;
         ctx.fillStyle = active ? "rgba(35,74,82,.9)" : selected ? "rgba(38,42,60,.95)" : "rgba(15,18,28,.85)";
         roundRect(x, y, width, 44, 5); ctx.fill();
         ctx.strokeStyle = active ? item.accent || item.color : selected ? "#e0b33a" : "#343a4a"; ctx.lineWidth = active ? 3 : 1; roundRect(x, y, width, 44, 5); ctx.stroke();
@@ -4603,6 +4885,10 @@
           ctx.fillStyle = "rgba(255,230,0,.18)";
           ctx.fillRect(x + width - 6, y + 5, 3, 34);
         }
+      }
+      if (pageCount > 1) {
+        ctx.textAlign = "center"; ctx.fillStyle = "#8b9bb4"; ctx.font = "9px Courier New";
+        ctx.fillText("PÁGINA " + (page + 1) + "/" + pageCount, x + width / 2, 442);
       }
     };
     drawColumn(WEAPONS, unlockedWeapons, equippedWeapons, 0, 55, 405);
