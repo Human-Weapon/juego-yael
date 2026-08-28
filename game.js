@@ -395,6 +395,9 @@
   }
   function setTile(tx, ty, v) {
     if (ty < 0 || ty >= worldH || tx < 0 || tx >= worldW) return;
+    tiles[ty][tx] = v;
+  }
+
   function makePlayer() {
     return {
       x: 3 * TILE,
