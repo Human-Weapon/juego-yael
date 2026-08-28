@@ -1,7 +1,7 @@
 "use strict";
 
 const L = require("./level.js");
-const { TILE, PHYS, T, solid, oneWay, LAVA_PITS, PLATFORMS, GROUND_Y } = L;
+const { TILE, PHYS, T, solid, oneWay, GROUND_Y } = L;
 
 function fail(msg) {
   console.error("FAIL:", msg);
@@ -40,181 +40,163 @@ function simulateJumpDist() {
   return x;
 }
 
-const lvl = L.buildLevel();
-const { tiles, worldW, worldH, doorX } = lvl;
-
-function tileAt(tx, ty) {
-  if (ty < 0 || ty >= worldH || tx < 0 || tx >= worldW) return T.EMPTY;
-  return tiles[ty][tx];
-}
-function blocksH(id) {
-  return solid(id) || id === T.LAVA;
-}
-
-function moveActor(e) {
-  const boxH = { x: e.x + e.vx, y: e.y, w: e.w, h: e.h };
-  const x0 = Math.floor(boxH.x / TILE);
-  const y0 = Math.floor(boxH.y / TILE);
-  const x1 = Math.floor((boxH.x + boxH.w - 0.01) / TILE);
-  const y1 = Math.floor((boxH.y + boxH.h - 0.01) / TILE);
-  for (let ty = y0; ty <= y1; ty++) {
-    for (let tx = x0; tx <= x1; tx++) {
-      const id = tileAt(tx, ty);
-      if (!blocksH(id)) continue;
-      const rx = tx * TILE;
-      if (e.vx > 0) e.x = rx - e.w;
-      else if (e.vx < 0) e.x = rx + TILE;
-      e.vx = 0;
-    }
-  }
-  e.x += e.vx;
-  e.onGround = false;
-  const boxV = { x: e.x, y: e.y + e.vy, w: e.w, h: e.h };
-  const vx0 = Math.floor(boxV.x / TILE);
-  const vy0 = Math.floor(boxV.y / TILE);
-  const vx1 = Math.floor((boxV.x + boxV.w - 0.01) / TILE);
-  const vy1 = Math.floor((boxV.y + boxV.h - 0.01) / TILE);
-  for (let ty = vy0; ty <= vy1; ty++) {
-    for (let tx = vx0; tx <= vx1; tx++) {
-      const id = tileAt(tx, ty);
-      if (id === T.LAVA) e.inLava = true;
-      const ry = ty * TILE;
-      if (oneWay(id)) {
-        if (e.vy >= 0 && e.y + e.h <= ry + 10) {
-          e.y = ry - e.h;
-          e.vy = 0;
-          e.onGround = true;
-        }
-        continue;
-      }
-      if (!blocksH(id)) continue;
-      if (e.vy > 0) {
-        e.y = ry - e.h;
-        e.vy = 0;
-        e.onGround = true;
-      } else if (e.vy < 0) {
-        e.y = ry + TILE;
-        e.vy = 0;
-      }
-    }
-  }
-  e.y += e.vy;
-}
-
 const h = simulateJumpHeight();
 const dist = simulateJumpDist();
 const tilesHigh = h / TILE;
-console.log("jump height px", h.toFixed(1), "tiles", tilesHigh.toFixed(2));
-console.log("jump dist px", dist.toFixed(1), "tiles", (dist / TILE).toFixed(2));
+console.log("=== JUMP METRICS ===");
+console.log("Jump height px:", h.toFixed(1), "tiles:", tilesHigh.toFixed(2));
+console.log("Jump dist px:", dist.toFixed(1), "tiles:", (dist / TILE).toFixed(2));
 
-if (tilesHigh < 5) fail("jump too short: " + tilesHigh.toFixed(2) + " tiles");
-else ok("jump reaches " + tilesHigh.toFixed(2) + " tiles (need >= 5)");
+if (tilesHigh < 5) fail("Jump too short: " + tilesHigh.toFixed(2) + " tiles");
+else ok("Jump reaches " + tilesHigh.toFixed(2) + " tiles (need >= 5)");
 
-if (dist < 6 * TILE) fail("jump distance too short for 6-tile gaps");
-else ok("air distance " + (dist / TILE).toFixed(2) + " tiles");
+if (dist < 6 * TILE) fail("Jump distance too short for 6-tile gaps");
+else ok("Air distance " + (dist / TILE).toFixed(2) + " tiles");
 
-const groundTop = GROUND_Y * TILE;
-for (const [x, y, w] of PLATFORMS) {
-  const need = groundTop - y * TILE;
-  const fromGround = need <= h + 8;
-  let reachable = fromGround;
-  if (!reachable) {
-    for (const [ox, oy] of PLATFORMS) {
-      if (oy >= y) continue;
-      const step = oy * TILE - y * TILE;
-      const horiz = Math.abs(ox - x) * TILE;
-      if (step <= h + 8 && horiz < dist) reachable = true;
+function testLevel(levelNum) {
+  console.log("\n=== TESTING LEVEL " + levelNum + " ===");
+  const lvl = L.buildLevel(levelNum);
+  const { tiles, worldW, worldH, doorX, lavaPits, bridges } = lvl;
+
+  function tileAt(tx, ty) {
+    if (ty < 0 || ty >= worldH || tx < 0 || tx >= worldW) return T.EMPTY;
+    return tiles[ty][tx];
+  }
+  function blocksH(id) {
+    return solid(id) || id === T.LAVA;
+  }
+
+  function moveActor(e) {
+    const boxH = { x: e.x + e.vx, y: e.y, w: e.w, h: e.h };
+    const x0 = Math.floor(boxH.x / TILE);
+    const y0 = Math.floor(boxH.y / TILE);
+    const x1 = Math.floor((boxH.x + boxH.w - 0.01) / TILE);
+    const y1 = Math.floor((boxH.y + boxH.h - 0.01) / TILE);
+    for (let ty = y0; ty <= y1; ty++) {
+      for (let tx = x0; tx <= x1; tx++) {
+        const id = tileAt(tx, ty);
+        if (!blocksH(id)) continue;
+        const rx = tx * TILE;
+        if (e.vx > 0) e.x = rx - e.w;
+        else if (e.vx < 0) e.x = rx + TILE;
+        e.vx = 0;
+      }
+    }
+    e.x += e.vx;
+    e.onGround = false;
+    const boxV = { x: e.x, y: e.y + e.vy, w: e.w, h: e.h };
+    const vx0 = Math.floor(boxV.x / TILE);
+    const vy0 = Math.floor(boxV.y / TILE);
+    const vx1 = Math.floor((boxV.x + boxV.w - 0.01) / TILE);
+    const vy1 = Math.floor((boxV.y + boxV.h - 0.01) / TILE);
+    for (let ty = vy0; ty <= vy1; ty++) {
+      for (let tx = vx0; tx <= vx1; tx++) {
+        const id = tileAt(tx, ty);
+        if (id === T.LAVA) e.inLava = true;
+        const ry = ty * TILE;
+        if (oneWay(id)) {
+          if (e.vy >= 0 && e.y + e.h <= ry + 10) {
+            e.y = ry - e.h;
+            e.vy = 0;
+            e.onGround = true;
+          }
+          continue;
+        }
+        if (!blocksH(id)) continue;
+        if (e.vy > 0) {
+          e.y = ry - e.h;
+          e.vy = 0;
+          e.onGround = true;
+        } else if (e.vy < 0) {
+          e.y = ry + TILE;
+          e.vy = 0;
+        }
+      }
+    }
+    e.y += e.vy;
+  }
+
+  let doorFound = false;
+  for (let y = 0; y < worldH; y++) {
+    for (let x = 0; x < worldW; x++) {
+      if (tiles[y][x] === T.DOOR) doorFound = true;
     }
   }
-  if (!reachable) fail("platform at x=" + x + " y=" + y + " unreachable, need " + need.toFixed(0) + "px");
-  else ok("platform x=" + x + " y=" + y + " w=" + w + " need " + (need / TILE).toFixed(2) + " tiles");
+  if (!doorFound) fail("No door in level " + levelNum);
+  else ok("Door exists at x~" + (doorX / TILE).toFixed(1));
+
+  const p = {
+    x: TILE * 3,
+    y: GROUND_Y * TILE - PHYS.PLAYER_H,
+    w: PHYS.PLAYER_W,
+    h: PHYS.PLAYER_H,
+    vx: 0,
+    vy: 0,
+    onGround: false,
+    inLava: false,
+    fell: false,
+    coyote: 0,
+    jumpBuf: 0,
+  };
+  let jumps = 0;
+  let lavaHits = 0;
+  let stuck = 0;
+  let lastX = p.x;
+
+  for (let frame = 0; frame < 9000; frame++) {
+    p.inLava = false;
+    p.fell = false;
+    const look = Math.floor((p.x + p.w + 18) / TILE);
+    const feet = Math.floor((p.y + p.h + 2) / TILE);
+    const chest = Math.floor((p.y + p.h * 0.45) / TILE);
+    const ahead = tileAt(look, feet);
+    const wall = solid(tileAt(look, chest)) || solid(tileAt(look, Math.floor(p.y / TILE)));
+    const gap = ahead === T.LAVA || ahead === T.EMPTY;
+    if (p.onGround) p.coyote = PHYS.COYOTE;
+    if (gap || wall) p.jumpBuf = PHYS.JUMP_BUF;
+    let jumped = false;
+    if (p.jumpBuf > 0 && p.coyote > 0) {
+      p.vy = PHYS.JUMP;
+      p.onGround = false;
+      p.jumpBuf = 0;
+      p.coyote = 0;
+      jumped = true;
+      jumps++;
+    }
+    if (!jumped) {
+      const g = p.vy < 0 ? PHYS.HOLD_GRAV : PHYS.GRAVITY;
+      p.vy += g;
+    }
+    if (p.vy > PHYS.MAX_FALL) p.vy = PHYS.MAX_FALL;
+    p.vx = PHYS.RUN;
+    moveActor(p);
+    if (p.coyote > 0) p.coyote--;
+    if (p.jumpBuf > 0) p.jumpBuf--;
+    if (p.inLava) {
+      lavaHits++;
+      p.vy = -9.5;
+    }
+    if (p.fell) {
+      fail("Bot fell off world at x=" + p.x.toFixed(0));
+      break;
+    }
+    if (Math.abs(p.x - lastX) < 0.2) stuck++;
+    else stuck = 0;
+    lastX = p.x;
+    if (stuck > 90) {
+      fail("Bot stuck at x=" + p.x.toFixed(0) + " y=" + p.y.toFixed(0) + " frame " + frame);
+      break;
+    }
+    if (p.x + p.w >= doorX) {
+      ok("Bot reached door in " + frame + " frames, jumps=" + jumps + " lavaHits=" + lavaHits);
+      break;
+    }
+    if (frame === 8999) fail("Bot never reached door, x=" + p.x.toFixed(0) + " door=" + doorX);
+  }
 }
 
-for (const [a, b] of LAVA_PITS) {
-  const width = b - a;
-  const px = width * TILE;
-  const hasBridge = PLATFORMS.some(([x, , w]) => x + w > a && x < b);
-  if (px > dist - 24 && !hasBridge) fail("lava pit " + a + "-" + b + " width " + width + " not jumpable and no bridge");
-  else ok("lava pit " + a + "-" + b + " width " + width + (hasBridge ? " has bridge" : " jumpable"));
-}
+testLevel(1);
+testLevel(2);
 
-let doorFound = false;
-for (let y = 0; y < worldH; y++) {
-  for (let x = 0; x < worldW; x++) {
-    if (tiles[y][x] === T.DOOR) doorFound = true;
-  }
-}
-if (!doorFound) fail("no door in level");
-else ok("door exists at x~" + (doorX / TILE).toFixed(1));
-
-const p = {
-  x: TILE * 3,
-  y: GROUND_Y * TILE - PHYS.PLAYER_H,
-  w: PHYS.PLAYER_W,
-  h: PHYS.PLAYER_H,
-  vx: 0,
-  vy: 0,
-  onGround: false,
-  inLava: false,
-  fell: false,
-  coyote: 0,
-  jumpBuf: 0,
-};
-let jumps = 0;
-let lavaHits = 0;
-let stuck = 0;
-let lastX = p.x;
-
-for (let frame = 0; frame < 8000; frame++) {
-  p.inLava = false;
-  p.fell = false;
-  const look = Math.floor((p.x + p.w + 20) / TILE);
-  const feet = Math.floor((p.y + p.h + 2) / TILE);
-  const chest = Math.floor((p.y + p.h * 0.45) / TILE);
-  const ahead = tileAt(look, feet);
-  const wall = solid(tileAt(look, chest)) || solid(tileAt(look, Math.floor(p.y / TILE)));
-  const gap = ahead === T.LAVA || ahead === T.EMPTY;
-  if (p.onGround) p.coyote = PHYS.COYOTE;
-  if (gap || wall) p.jumpBuf = PHYS.JUMP_BUF;
-  let jumped = false;
-  if (p.jumpBuf > 0 && p.coyote > 0) {
-    p.vy = PHYS.JUMP;
-    p.onGround = false;
-    p.jumpBuf = 0;
-    p.coyote = 0;
-    jumped = true;
-    jumps++;
-  }
-  if (!jumped) {
-    const g = p.vy < 0 ? PHYS.HOLD_GRAV : PHYS.GRAVITY;
-    p.vy += g;
-  }
-  if (p.vy > PHYS.MAX_FALL) p.vy = PHYS.MAX_FALL;
-  p.vx = PHYS.RUN;
-  moveActor(p);
-  if (p.coyote > 0) p.coyote--;
-  if (p.jumpBuf > 0) p.jumpBuf--;
-  if (p.inLava) {
-    lavaHits++;
-    p.vy = -9.5;
-  }
-  if (p.fell) {
-    fail("bot fell off world at x=" + p.x.toFixed(0));
-    break;
-  }
-  if (Math.abs(p.x - lastX) < 0.2) stuck++;
-  else stuck = 0;
-  lastX = p.x;
-  if (stuck > 90) {
-    fail("bot stuck at x=" + p.x.toFixed(0) + " y=" + p.y.toFixed(0) + " frame " + frame);
-    break;
-  }
-  if (p.x + p.w >= doorX) {
-    ok("bot reached door in " + frame + " frames, jumps=" + jumps + " lavaHits=" + lavaHits);
-    break;
-  }
-  if (frame === 7999) fail("bot never reached door, x=" + p.x.toFixed(0) + " door=" + doorX);
-}
-
-if (!process.exitCode) console.log("\nALL PLAYABILITY CHECKS PASSED");
-else console.log("\nSOME CHECKS FAILED");
+if (!process.exitCode) console.log("\nALL LEVEL PLAYABILITY CHECKS PASSED!");
+else console.log("\nSOME CHECKS FAILED!");

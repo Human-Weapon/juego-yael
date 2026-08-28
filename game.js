@@ -91,6 +91,8 @@
   const mouse = { x: VIEW_W / 2, y: VIEW_H / 2, left: false, right: false, leftClick: false, rightClick: false };
 
   let state = "menu";
+  let currentLevel = 1;
+  let levelName = "NIVEL 1: PROTOCOLO BELMONT";
   let time = 0;
   let shake = 0;
   let cam = { x: 0, y: 0 };
@@ -105,6 +107,8 @@
   let pickups = [];
   let floating = [];
   let lavaSpawns = [];
+  let zones = [];
+  let spawns = null;
   let coins = 0;
   let kills = 0;
   let lives = 4;
@@ -134,11 +138,40 @@
     return Math.atan2(by - ay, bx - ax);
   }
 
+  let bgm = null;
+
+  function initBGM() {
+    if (bgm) return;
+    try {
+      bgm = new Audio("Battle of the Brass.mp3");
+      bgm.loop = true;
+      bgm.volume = 0.35; // Volumen equilibrado para destacar los efectos de armas y explosiones
+    } catch (err) {}
+  }
+
+  function playBGM() {
+    initBGM();
+    if (!bgm) return;
+    if (muted) {
+      bgm.muted = true;
+    } else {
+      bgm.muted = false;
+      if (bgm.paused) {
+        bgm.play().catch(() => {});
+      }
+    }
+  }
+
+  function pauseBGM() {
+    if (bgm && !bgm.paused) bgm.pause();
+  }
+
   function ensureAudio() {
-    if (audio || muted) return;
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return;
-    audio = new AC();
+    if (!muted && !audio) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) audio = new AC();
+    }
+    playBGM();
   }
 
   function beep(freq, dur, type, vol, slide) {
@@ -201,6 +234,22 @@
     },
     switch: () => beep(640, 0.06, "square", 0.035),
     emerge: () => beep(70, 0.22, "sawtooth", 0.045, 36),
+    alarm: () => {
+      beep(880, 0.07, "sawtooth", 0.07, 1200);
+      setTimeout(() => beep(1020, 0.07, "sawtooth", 0.07, 1500), 60);
+    },
+    greenFire: () => {
+      beep(620, 0.08, "sawtooth", 0.04, 280);
+      noiseBurst(0.03, 0.035);
+    },
+    bossDash: () => {
+      noiseBurst(0.18, 0.12);
+      beep(95, 0.25, "sawtooth", 0.08, 40);
+    },
+    overheat: () => {
+      beep(320, 0.35, "sine", 0.06, 120);
+      noiseBurst(0.12, 0.04);
+    },
   };
 
   function fitCanvas() {
@@ -221,15 +270,26 @@
     keys[k] = true;
     if (["arrowup", "arrowdown", "arrowleft", "arrowright", " ", "w", "a", "s", "d"].includes(k)) e.preventDefault();
     if (k === "enter" || k === " ") {
-      if (state === "menu") startGame();
-      else if (state === "dead" && lives <= 0) startGame();
-      else if (state === "win") startGame();
+      if (state === "menu") startGame(currentLevel || 1);
+      else if (state === "level_clear") startGame(2);
+      else if (state === "dead" && lives <= 0) startGame(currentLevel || 1);
+      else if (state === "win") startGame(1);
     }
-    if (k === "p" && state === "play") state = "pause";
-    else if (k === "p" && state === "pause") state = "play";
-    if (k === "m") muted = !muted;
+    if (k === "1" && (state === "menu" || state === "dead" || state === "win" || state === "level_clear")) startGame(1);
+    if (k === "2" && (state === "menu" || state === "dead" || state === "win" || state === "level_clear")) startGame(2);
+    if (k === "p" && state === "play") {
+      state = "pause";
+      pauseBGM();
+    } else if (k === "p" && state === "pause") {
+      state = "play";
+      playBGM();
+    }
+    if (k === "m") {
+      muted = !muted;
+      if (bgm) bgm.muted = muted;
+    }
     if (k === "e" && state === "play") cycleWeapon();
-    if (k === "r" && (state === "dead" || state === "win")) startGame();
+    if (k === "r" && (state === "dead" || state === "win" || state === "level_clear")) startGame(currentLevel);
   });
   window.addEventListener("keyup", (e) => {
     keys[e.key.toLowerCase()] = false;
@@ -295,32 +355,39 @@
     };
   }
 
-  function startGame() {
+  function startGame(lvlNum) {
+    if (lvlNum !== undefined) currentLevel = lvlNum;
+    else currentLevel = currentLevel || 1;
     ensureAudio();
     if (audio && audio.state === "suspended") audio.resume();
-    const lvl = L.buildLevel();
+    const lvl = L.buildLevel(currentLevel);
     tiles = lvl.tiles;
     tileMeta = lvl.tileMeta;
-    lavaSpawns = lvl.lavaSpawns;
+    lavaSpawns = lvl.lavaSpawns || [];
+    zones = lvl.zones || [];
+    spawns = lvl.spawns || null;
     worldW = lvl.worldW;
     worldH = lvl.worldH;
     groundY = lvl.groundY;
     doorX = lvl.doorX;
+    levelName = lvl.name || ("NIVEL " + currentLevel);
     player = makePlayer();
     enemies = [];
     bullets = [];
     particles = [];
     pickups = [];
     floating = [];
-    coins = 0;
-    kills = 0;
-    lives = 4;
+    if (currentLevel === 1) {
+      coins = 0;
+      kills = 0;
+      lives = 4;
+    }
     winT = 0;
     seaKingSpawned = false;
     shake = 0;
     state = "play";
     snapCam();
-    seedLandEnemies();
+    spawnYaelEnemies();
   }
 
   function snapCam() {
@@ -328,39 +395,23 @@
     cam.y = clamp(player.y - VIEW_H * 0.62, 0, Math.max(0, worldH * TILE - VIEW_H));
   }
 
-  function seedLandEnemies() {
-    const spots = [
-      ["shark", 24],
-      ["octopus", 38],
-      ["crab", 58],
-      ["shark", 76],
-      ["octopus", 96],
-      ["crab", 110],
-      ["shark", 124],
-    ];
-    for (const [type, tx] of spots) {
-      const d = ENEMY_TYPES[type];
-      enemies.push({
-        type,
-        x: tx * TILE,
-        y: groundY * TILE - d.h,
-        w: d.w,
-        h: d.h,
-        vx: 0,
-        vy: 0,
-        hp: d.hp,
-        maxHp: d.hp,
-        facing: -1,
-        state: "hunt",
-        t: 0,
-        cool: 20,
-        onGround: true,
-        dead: false,
-        inLava: false,
-        anim: 0,
-        ignoreLava: false,
-        flash: 0,
-      });
+  function spawnYaelEnemies() {
+    if (currentLevel === 1) {
+      if (spawns && spawns.comun) {
+        spawnEnemy("shark", spawns.comun.tileX * TILE, groundY * TILE);
+      }
+      if (spawns && spawns.boss) {
+        spawnEnemy("seaking", spawns.boss.tileX * TILE, groundY * TILE);
+      }
+    } else if (currentLevel === 2) {
+      if (spawns && spawns.radstars) {
+        for (const rs of spawns.radstars) {
+          spawnEnemy("radstar", rs.tileX * TILE, rs.tileY * TILE);
+        }
+      }
+      if (spawns && spawns.boss) {
+        spawnEnemy("radboss", spawns.boss.tileX * TILE, groundY * TILE);
+      }
     }
   }
 
@@ -396,23 +447,7 @@
     return out;
   }
 
-  function bumpBlock(tx, ty) {
-    const id = tileAt(tx, ty);
-    if (id === T.QBLOCK) {
-      const meta = tileMeta[ty][tx] || { coins: 1 };
-      meta.coins--;
-      sfx.coin();
-      coins++;
-      burst(tx * TILE + TILE / 2, ty * TILE, "#e0b33a", 8);
-      floatText(tx * TILE + 8, ty * TILE - 10, "+1", "#e0b33a");
-      if (meta.coins <= 0) setTile(tx, ty, T.USED);
-      else tileMeta[ty][tx] = meta;
-    } else if (id === T.BRICK) {
-      burst(tx * TILE + TILE / 2, ty * TILE + TILE / 2, "#5c4033", 10);
-      setTile(tx, ty, T.EMPTY);
-      sfx.hit();
-    }
-  }
+  function bumpBlock() {}
 
   function blocksH(id) {
     return solid(id) || id === T.LAVA;
@@ -551,24 +586,29 @@
     eel: { name: "Anguila Magma", hp: 20, w: 48, h: 18, speed: 2.2, dmg: 1, score: 180, spit: false },
     crab: { name: "Cangrejo Lava", hp: 62, w: 48, h: 28, speed: 0.75, dmg: 1, score: 300, spit: false },
     seaking: { name: "Rey Marino", hp: 200, w: 72, h: 40, speed: 0.6, dmg: 2, score: 2000, spit: true, boss: true },
+    radstar: { name: "Estrella Radiactiva", hp: 30, w: 44, h: 44, speed: 1.8, dmg: 1, score: 350, flying: true, greenFire: true },
+    radboss: { name: "Titan Radiactivo", hp: 950, w: 116, h: 96, speed: 0.8, dmg: 2, score: 6500, boss: true, heavy: true },
   };
 
   function spawnEnemy(type, x, y) {
     const d = ENEMY_TYPES[type];
+    const isFlying = !!d.flying;
     enemies.push({
       type,
       x: x - d.w / 2,
-      y,
+      y: isFlying ? y : y - d.h,
+      baseY: y,
       w: d.w,
       h: d.h,
       vx: 0,
-      vy: -2,
+      vy: isFlying ? 0 : -2,
       hp: d.hp,
       maxHp: d.hp,
       facing: Math.random() < 0.5 ? -1 : 1,
-      state: "emerge",
+      state: isFlying ? "hunt" : "emerge",
       t: 0,
-      cool: 30,
+      cool: irand(20, 50),
+      phaseTimer: 0,
       onGround: false,
       dead: false,
       inLava: false,
@@ -576,16 +616,34 @@
       ignoreLava: true,
       flash: 0,
     });
-    sfx.emerge();
-    burst(x, y, "#ff6b00", 14);
+    if (isFlying) {
+      burst(x, y, "#39ff14", 10);
+    } else {
+      sfx.emerge();
+      burst(x, y, "#ff6b00", 14);
+    }
   }
 
   function hurtEnemy(en, dmg) {
     if (en.dead || en.state === "emerge") return;
-    en.hp -= dmg;
+    let finalDmg = dmg;
+    if (en.type === "radboss") {
+      if (en.state === "overheat") {
+        finalDmg = Math.floor(dmg * 2);
+        floatText(en.x + en.w / 2, en.y - 12, "¡CRITICO! " + finalDmg, "#5cf6ff");
+        burst(en.x + en.w / 2, en.y + en.h / 2, "#5cf6ff", 8);
+        sfx.hit();
+      } else {
+        finalDmg = Math.max(1, Math.floor(dmg * 0.35));
+        floatText(en.x + en.w / 2, en.y - 12, "ESCUDO " + finalDmg, "#8b9bb4");
+        sfx.hit();
+      }
+    } else {
+      floatText(en.x + en.w / 2, en.y, "" + finalDmg, "#fff");
+      sfx.hit();
+    }
+    en.hp -= finalDmg;
     en.flash = 6;
-    floatText(en.x + en.w / 2, en.y, "" + dmg, "#fff");
-    sfx.hit();
     if (en.hp <= 0) killEnemy(en);
   }
 
@@ -595,16 +653,20 @@
     kills++;
     coins += ENEMY_TYPES[en.type].score / 10;
     sfx.kill();
-    burst(en.x + en.w / 2, en.y + en.h / 2, "#7bed9f", 16);
-    if (Math.random() < 0.62) {
-      pickups.push({
-        x: en.x + en.w / 2,
-        y: en.y,
-        vy: -3,
-        kind: Math.random() < 0.35 ? "heart" : "ammo",
-        weapon: irand(0, 3),
-        life: 420,
-      });
+    const col = en.type === "radstar" ? "#39ff14" : (en.type === "radboss" ? "#ff7b00" : "#7bed9f");
+    burst(en.x + en.w / 2, en.y + en.h / 2, col, en.type === "radboss" ? 36 : 16);
+    if (Math.random() < 0.65 || ENEMY_TYPES[en.type].boss) {
+      const dropCount = ENEMY_TYPES[en.type].boss ? 3 : 1;
+      for (let i = 0; i < dropCount; i++) {
+        pickups.push({
+          x: en.x + en.w / 2 + (i - 1) * 16,
+          y: en.y,
+          vy: -3 - i,
+          kind: Math.random() < 0.4 ? "heart" : "ammo",
+          weapon: irand(0, 3),
+          life: 420,
+        });
+      }
     }
   }
 
@@ -741,9 +803,15 @@
 
     for (const t of tilesTouching(bodyBox(p))) {
       if (t.id === T.DOOR && !p.dead) {
-        state = "win";
-        winT = 0;
-        sfx.win();
+        if (currentLevel === 1) {
+          state = "level_clear";
+          winT = 0;
+          sfx.win();
+        } else {
+          state = "win";
+          winT = 0;
+          sfx.win();
+        }
       }
     }
   }
@@ -768,21 +836,152 @@
         burst(en.x + en.w / 2, en.y + en.h, "#ff6b00", 1);
         if (en.t > 42) {
           en.state = "hunt";
-          en.ignoreLava = en.type === "eel" || en.type === "seaking";
+          en.ignoreLava = en.type === "eel" || en.type === "seaking" || en.type === "radboss";
         }
         continue;
       }
 
       const pcx = player.x + player.w / 2;
+      const pcy = player.y + player.h / 2;
       const ecx = en.x + en.w / 2;
+      const ecy = en.y + en.h / 2;
       const dx = pcx - ecx;
       en.facing = dx >= 0 ? 1 : -1;
 
-      if (en.type === "eel") {
+      if (en.type === "radstar") {
+        // Estrella radiactiva voladora: vuelo senoidal y disparos de fuego verde
+        const distP = dist(pcx, pcy, ecx, ecy);
+        const targetY = clamp(pcy - 40 + Math.sin(en.t * 0.07) * 45, TILE * 2, (groundY - 1) * TILE);
+        en.y = lerp(en.y, targetY, 0.04);
+        if (distP > 140) {
+          en.vx = Math.cos(angTo(ecx, ecy, pcx, targetY)) * (def.speed * 0.9);
+          en.x += en.vx;
+        } else {
+          en.vx = 0;
+        }
+        if (en.cool <= 0 && distP < 460) {
+          const a = angTo(ecx, ecy, pcx, pcy);
+          bullets.push({
+            x: ecx,
+            y: ecy,
+            vx: Math.cos(a) * 5.6,
+            vy: Math.sin(a) * 5.6,
+            r: 6,
+            dmg: 1,
+            life: 85,
+            owner: "enemy",
+            greenFire: true,
+            color: "#39ff14",
+            hit: [],
+          });
+          sfx.greenFire();
+          burst(ecx, ecy, "#39ff14", 6);
+          en.cool = irand(65, 105);
+        }
+      } else if (en.type === "radboss") {
+        // Boss estrella titán naranja pesado en tierra
+        en.vy += PHYS.GRAVITY * 0.8;
+        if (en.vy > PHYS.MAX_FALL) en.vy = PHYS.MAX_FALL;
+
+        if (en.state === "hunt" || en.state === "walk") {
+          en.vx = en.facing * def.speed;
+          en.phaseTimer++;
+
+          // Disparo sencillo de fuego naranja
+          if (en.cool <= 0 && Math.abs(dx) < 560) {
+            const a = angTo(ecx, en.y + 35, pcx, player.y + 12);
+            bullets.push({
+              x: ecx,
+              y: en.y + 35,
+              vx: Math.cos(a) * 5.8,
+              vy: Math.sin(a) * 5.8,
+              r: 8,
+              dmg: 1,
+              life: 90,
+              owner: "enemy",
+              orangeFire: true,
+              color: "#ff7b00",
+              hit: [],
+            });
+            en.cool = 65;
+            burst(ecx, en.y + 35, "#ff7b00", 6);
+          }
+
+          // Iniciar aviso de ataque telegrafiado
+          if (en.phaseTimer > 180 && Math.abs(dx) < 600) {
+            en.state = "charge";
+            en.phaseTimer = 0;
+            en.vx = 0;
+            sfx.alarm();
+            floatText(ecx, en.y - 20, "¡ALERTA: SOBRECARGA!", "#ffaa00");
+          }
+        } else if (en.state === "charge") {
+          // Fase de aviso / telegrafiado (75 frames = 1.25 segundos)
+          en.phaseTimer++;
+          en.vx = 0;
+          en.flash = 2;
+          if (en.phaseTimer % 18 === 0) {
+            sfx.alarm();
+            shake = Math.max(shake, 4);
+          }
+          burst(ecx + rand(-35, 35), en.y + rand(15, 60), "#ff7b00", 3);
+
+          if (en.phaseTimer >= 75) {
+            // Ejecutar ataque rápido (embestida + ráfaga de 5 proyectiles)
+            en.state = "attack";
+            en.phaseTimer = 0;
+            en.facing = dx >= 0 ? 1 : -1;
+            en.vx = en.facing * 12.0;
+            shake = 12;
+            sfx.bossDash();
+            const a = angTo(ecx, en.y + 35, pcx, player.y + 10);
+            for (let i = -2; i <= 2; i++) {
+              bullets.push({
+                x: ecx,
+                y: en.y + 35,
+                vx: Math.cos(a + i * 0.18) * 8.5,
+                vy: Math.sin(a + i * 0.18) * 8.5,
+                r: 8,
+                dmg: 1,
+                life: 75,
+                owner: "enemy",
+                orangeFire: true,
+                color: "#ff3c00",
+                hit: [],
+              });
+            }
+          }
+        } else if (en.state === "attack") {
+          en.phaseTimer++;
+          burst(ecx, en.y + en.h - 6, "#ff3c00", 3);
+          if (en.phaseTimer >= 26) {
+            en.state = "overheat";
+            en.phaseTimer = 0;
+            en.vx = 0;
+            sfx.overheat();
+            floatText(ecx, en.y - 20, "¡NUCLEO EXPUESTO (2X DANO)!", "#5cf6ff");
+          }
+        } else if (en.state === "overheat") {
+          en.phaseTimer++;
+          en.vx = 0;
+          if (en.phaseTimer % 10 === 0) {
+            burst(ecx, en.y + 35, "#5cf6ff", 4);
+            burst(ecx, en.y + 35, "#fff", 3);
+          }
+          if (en.phaseTimer >= 160) {
+            en.state = "walk";
+            en.phaseTimer = 0;
+            en.cool = 40;
+            floatText(ecx, en.y - 20, "ARMADURA RESTAURADA", "#8b9bb4");
+          }
+        }
+        moveActor(en);
+      } else if (en.type === "eel") {
         en.vx = en.facing * def.speed * 1.35;
         en.vy += 0.18;
         if (en.inLava) en.vy = -1.4;
         if (Math.abs(dx) < 180 && Math.abs(player.y - en.y) < 90 && en.t % 55 === 0) en.vy = -7;
+        moveActor(en);
       } else if (en.type === "seaking") {
         en.vx = en.facing * def.speed;
         en.vy += PHYS.GRAVITY * 0.35;
@@ -808,6 +1007,7 @@
           en.cool = 70;
           sfx.emerge();
         }
+        moveActor(en);
       } else {
         en.vx = en.facing * def.speed;
         en.vy += PHYS.GRAVITY;
@@ -832,11 +1032,11 @@
           });
           en.cool = 55;
         }
+        moveActor(en);
       }
 
       if (en.cool > 0) en.cool--;
       en.inLava = false;
-      moveActor(en);
       if (en.inLava && !en.ignoreLava) {
         en.vy = -5.5;
       }
@@ -857,6 +1057,12 @@
       if (b.plasma) {
         b.vy *= 0.99;
         particles.push({ x: b.x, y: b.y, vx: 0, vy: 0, life: 8, max: 8, color: b.color, s: b.r, g: 0 });
+      }
+      if (b.greenFire) {
+        particles.push({ x: b.x + rand(-2, 2), y: b.y + rand(-2, 2), vx: rand(-0.4, 0.4), vy: rand(-0.4, 0.4), life: 7, max: 7, color: "#39ff14", s: 3, g: 0 });
+      }
+      if (b.orangeFire) {
+        particles.push({ x: b.x + rand(-3, 3), y: b.y + rand(-3, 3), vx: rand(-0.5, 0.5), vy: rand(-0.5, 0.5), life: 8, max: 8, color: "#ff7b00", s: 4, g: 0.05 });
       }
       const box = { x: b.x - b.r, y: b.y - b.r, w: b.r * 2, h: b.r * 2 };
       let hitTile = false;
@@ -941,20 +1147,17 @@
   }
 
   function updateSpawns() {
-    const alive = enemies.filter((e) => !e.dead && e.type !== "seaking").length;
-    for (const s of lavaSpawns) {
-      if (s.x < cam.x - 60 || s.x > cam.x + VIEW_W + 60) continue;
-      s.t--;
-      if (s.t <= 0 && alive < 10) {
-        const types = ["shark", "octopus", "eel", "crab"];
-        spawnEnemy(types[irand(0, types.length - 1)], s.x + rand(-24, 24), s.y);
-        s.t = irand(70, 150);
+    if (currentLevel === 1 && lavaSpawns) {
+      const alive = enemies.filter((e) => !e.dead).length;
+      for (const s of lavaSpawns) {
+        if (s.x < cam.x - 60 || s.x > cam.x + VIEW_W + 60) continue;
+        s.t--;
+        if (s.t <= 0 && alive < 7) {
+          const types = ["shark", "octopus", "eel", "crab"];
+          spawnEnemy(types[irand(0, types.length - 1)], s.x + rand(-24, 24), s.y);
+          s.t = irand(100, 200);
+        }
       }
-    }
-    if (!seaKingSpawned && player.x > 128 * TILE) {
-      seaKingSpawned = true;
-      spawnEnemy("seaking", 136 * TILE, 13 * TILE);
-      floatText(player.x, player.y - 40, "¡REY MARINO!", "#5cf6ff");
     }
   }
 
@@ -1054,39 +1257,61 @@
     if (x < -TILE || y < -TILE || x > VIEW_W || y > VIEW_H) return;
 
     if (id === T.GRASS) {
-      ctx.fillStyle = "#1a1524";
+      ctx.fillStyle = "#2a261c";
       ctx.fillRect(x, y, TILE, TILE);
-      ctx.fillStyle = "#0e6b6b";
-      ctx.fillRect(x, y, TILE, 10);
-      ctx.fillStyle = "#5cf6ff";
+      ctx.fillStyle = "#3d3828";
+      ctx.fillRect(x, y, TILE, 8);
+      ctx.fillStyle = "#1a1810";
+      ctx.fillRect(x + 6, y + 16, 14, 3);
+      ctx.fillRect(x + 28, y + 28, 10, 3);
+      ctx.fillStyle = "#5a4a28";
       ctx.fillRect(x, y, TILE, 2);
-      ctx.fillStyle = "#2a2038";
-      ctx.fillRect(x + 8, y + 18, 6, 6);
-      ctx.fillRect(x + 28, y + 30, 8, 5);
     } else if (id === T.DIRT) {
-      ctx.fillStyle = "#14101c";
+      ctx.fillStyle = "#1a1610";
       ctx.fillRect(x, y, TILE, TILE);
-      ctx.fillStyle = "#2a2038";
-      ctx.fillRect(x + 10, y + 12, 5, 5);
+      ctx.fillStyle = "#2c2418";
+      ctx.fillRect(x + 10, y + 12, 8, 5);
       ctx.fillRect(x + 30, y + 28, 7, 4);
     } else if (id === T.BRICK) {
-      ctx.fillStyle = "#2b2438";
+      ctx.fillStyle = "#3a3f36";
       ctx.fillRect(x, y, TILE, TILE);
-      ctx.strokeStyle = "#e0b33a";
+      ctx.fillStyle = "#2a2e28";
+      ctx.fillRect(x + 2, y + 2, TILE - 4, TILE - 4);
+      ctx.fillStyle = "#6a7060";
+      ctx.fillRect(x + 4, y + 4, TILE - 8, 4);
+      ctx.fillStyle = "#8a9080";
+      ctx.fillRect(x + 6, y + 10, 8, 3);
+      ctx.fillRect(x + 28, y + 22, 6, 3);
+      ctx.fillStyle = "#1a1c18";
+      ctx.fillRect(x + 18, y + 16, 12, 14);
+    } else if (id === T.BRIDGE) {
+      ctx.fillStyle = "#3b0610";
+      ctx.fillRect(x, y + 28, TILE, 20);
+      ctx.fillStyle = "#c45c12";
+      ctx.fillRect(x, y + 32, TILE, 8);
+      ctx.fillStyle = "#4a4538";
+      ctx.fillRect(x, y, TILE, 18);
+      ctx.fillStyle = "#7a7568";
+      ctx.fillRect(x, y, TILE, 4);
+      ctx.fillStyle = "#2a2818";
+      ctx.fillRect(x + 8, y + 8, 6, 6);
+      ctx.fillRect(x + 28, y + 8, 6, 6);
+      ctx.fillStyle = "#e0b33a";
+      ctx.fillRect(x + 10, y + 10, 2, 2);
+      ctx.fillRect(x + 30, y + 10, 2, 2);
+    } else if (id === T.CRATE) {
+      ctx.fillStyle = "#5c4a28";
+      ctx.fillRect(x, y, TILE, TILE);
+      ctx.fillStyle = "#c4a35a";
+      ctx.strokeStyle = "#2a2010";
       ctx.lineWidth = 2;
-      ctx.strokeRect(x + 2, y + 2, TILE - 4, TILE - 4);
-      ctx.fillStyle = "#5cf6ff";
-      ctx.fillRect(x + TILE / 2 - 3, y + TILE / 2 - 3, 6, 6);
-    } else if (id === T.QBLOCK || id === T.USED) {
-      ctx.fillStyle = id === T.QBLOCK ? "#3a2a10" : "#1a1520";
-      ctx.fillRect(x, y, TILE, TILE);
-      ctx.strokeStyle = id === T.QBLOCK ? "#e0b33a" : "#5c4033";
-      ctx.lineWidth = 3;
       ctx.strokeRect(x + 3, y + 3, TILE - 6, TILE - 6);
-      ctx.fillStyle = id === T.QBLOCK ? "#5cf6ff" : "#444";
-      ctx.font = "bold 26px Courier New";
-      ctx.textAlign = "center";
-      ctx.fillText(id === T.QBLOCK ? "?" : "x", x + TILE / 2, y + 34);
+      ctx.fillRect(x + 8, y + 20, TILE - 16, 6);
+      ctx.fillStyle = "#2a2010";
+      ctx.fillRect(x + TILE / 2 - 2, y + 8, 4, TILE - 16);
+    } else if (id === T.QBLOCK || id === T.USED) {
+      ctx.fillStyle = "#5c4a28";
+      ctx.fillRect(x, y, TILE, TILE);
     } else if (id === T.LAVA) {
       const w1 = Math.sin(time * 0.09 + tx * 0.7) * 5;
       ctx.fillStyle = "#3b0610";
@@ -1111,17 +1336,19 @@
       ctx.fillStyle = "#e0b33a";
       ctx.fillRect(x + 4, y + 8, TILE - 8, 2);
     } else if (id === T.PIPE || id === T.PIPE_TOP) {
-      ctx.fillStyle = "#1a2430";
-      ctx.fillRect(x, y, TILE, TILE);
-      ctx.fillStyle = "#5cf6ff";
-      ctx.fillRect(x + 6, y, 4, TILE);
-      ctx.fillStyle = "#e0b33a";
-      ctx.fillRect(x + TILE - 10, y, 4, TILE);
+      ctx.fillStyle = "#8a7a48";
+      ctx.fillRect(x, y + 18, TILE, 30);
+      ctx.fillStyle = "#c4b06a";
+      ctx.fillRect(x + 4, y + 10, TILE - 8, 16);
+      ctx.fillStyle = "#6a5a30";
+      ctx.fillRect(x + 8, y + 14, TILE - 16, 8);
+      ctx.fillStyle = "#d8c480";
+      ctx.fillRect(x, y + 18, TILE, 4);
       if (id === T.PIPE_TOP) {
-        ctx.fillStyle = "#0e6b6b";
-        ctx.fillRect(x - 4, y, TILE + 8, 14);
-        ctx.fillStyle = "#5cf6ff";
-        ctx.fillRect(x - 4, y, TILE + 8, 3);
+        ctx.fillStyle = "#c4b06a";
+        ctx.fillRect(x - 2, y + 6, TILE + 4, 12);
+        ctx.fillStyle = "#6a5a30";
+        ctx.fillRect(x + 6, y + 8, TILE - 12, 6);
       }
     } else if (id === T.CASTLE) {
       ctx.fillStyle = "#1a1524";
@@ -1162,6 +1389,29 @@
     ctx.fill();
     ctx.fillStyle = "#5cf6ff";
     ctx.fillText("†", cx + 5 * TILE + 28, top - 56);
+  }
+
+  function drawSpawnMarkers() {
+    if (!spawns) return;
+    const marks = [spawns.comun, spawns.boss];
+    for (const s of marks) {
+      if (!s) continue;
+      const x = s.tileX * TILE + TILE / 2 - cam.x;
+      const y = s.tileY * TILE - cam.y;
+      if (x < -40 || x > VIEW_W + 40) continue;
+      const boss = s.label === "BOSS";
+      ctx.strokeStyle = boss ? "#ef233c" : "#5cf6ff";
+      ctx.fillStyle = boss ? "rgba(239,35,60,0.18)" : "rgba(92,246,255,0.18)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y - 18, 16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = boss ? "#ef233c" : "#5cf6ff";
+      ctx.font = "bold 11px Courier New";
+      ctx.textAlign = "center";
+      ctx.fillText(s.label, x, y - 40);
+    }
   }
 
   function blit(img, feetX, feetY, flip) {
@@ -1220,10 +1470,19 @@
   function drawEnemy(en) {
     const x = en.x + en.w / 2 - cam.x;
     const y = en.y + en.h - cam.y;
-    if (x < -90 || x > VIEW_W + 90) return;
+    if (x < -120 || x > VIEW_W + 120) return;
     const set = SPR[en.type];
     if (!set) return;
-    const frame = Math.floor(en.anim) % 2 === 0 ? set.idle : set.walk;
+    let frame = Math.floor(en.anim) % 2 === 0 ? set.idle : set.walk;
+
+    if (en.type === "radstar") {
+      if (en.cool < 16 && set.shoot) frame = set.shoot;
+    } else if (en.type === "radboss") {
+      if (en.state === "charge" && set.charge) frame = set.charge;
+      else if (en.state === "attack" && set.attack) frame = set.attack;
+      else if (en.state === "overheat" && set.overheat) frame = set.overheat;
+    }
+
     ctx.save();
     if (en.dead) {
       ctx.translate(x, y);
@@ -1232,16 +1491,25 @@
     }
     if (en.flash > 0) ctx.globalAlpha = 0.4;
     if (en.state === "emerge") ctx.globalAlpha = Math.min(1, en.t / 24);
+
+    if (en.type === "radboss" && en.state === "overheat") {
+      ctx.shadowColor = "#5cf6ff";
+      ctx.shadowBlur = 14;
+    } else if (en.type === "radboss" && en.state === "charge") {
+      ctx.shadowColor = "#ff7b00";
+      ctx.shadowBlur = 18;
+    }
+
     blit(frame, x, y, en.facing < 0);
     ctx.restore();
 
-    if (!en.dead && en.hp < en.maxHp) {
+    if (!en.dead && !ENEMY_TYPES[en.type].boss && en.hp < en.maxHp) {
       const bw = en.w;
       const hx = en.x - cam.x;
       const hy = en.y - cam.y - 8;
       ctx.fillStyle = "#111";
       ctx.fillRect(hx, hy, bw, 4);
-      ctx.fillStyle = "#ef233c";
+      ctx.fillStyle = en.type === "radstar" ? "#39ff14" : "#ef233c";
       ctx.fillRect(hx, hy, bw * (en.hp / en.maxHp), 4);
     }
   }
@@ -1252,10 +1520,10 @@
       ctx.beginPath();
       ctx.arc(b.x - cam.x, b.y - cam.y, b.r, 0, Math.PI * 2);
       ctx.fill();
-      if (b.plasma || b.explode) {
-        ctx.fillStyle = "rgba(255,255,255,0.5)";
+      if (b.plasma || b.explode || b.greenFire || b.orangeFire) {
+        ctx.fillStyle = "rgba(255,255,255,0.6)";
         ctx.beginPath();
-        ctx.arc(b.x - cam.x, b.y - cam.y, b.r * 0.4, 0, Math.PI * 2);
+        ctx.arc(b.x - cam.x, b.y - cam.y, b.r * 0.45, 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -1304,7 +1572,7 @@
     ctx.fillStyle = "#5cf6ff";
     ctx.font = "bold 14px Courier New";
     ctx.textAlign = "left";
-    ctx.fillText("YAEL", 24, 32);
+    ctx.fillText("YAEL  [" + (levelName.split(":")[0] || "NIVEL 1") + "]", 24, 32);
     for (let i = 0; i < p.maxHp; i++) {
       ctx.fillStyle = i < p.hp ? "#ef233c" : "#2a1014";
       const hx = 86 + i * 20;
@@ -1340,12 +1608,47 @@
     ctx.fillText(w.specialName, VIEW_W - 254, 64);
 
     const remain = Math.max(0, doorX - player.x);
-    ctx.fillStyle = "rgba(7,6,12,0.55)";
-    ctx.fillRect(VIEW_W / 2 - 100, 12, 200, 22);
+    const zx = Math.floor(player.x / TILE);
+    let zname = "PATIO";
+    for (let i = 0; i < zones.length; i++) {
+      if (zx >= zones[i].x0 && zx < zones[i].x1) zname = zones[i].name;
+    }
+    ctx.fillStyle = "rgba(7,6,12,0.65)";
+    ctx.fillRect(VIEW_W / 2 - 150, 12, 300, 22);
     ctx.fillStyle = "#5cf6ff";
     ctx.textAlign = "center";
     ctx.font = "bold 11px Courier New";
-    ctx.fillText("CASTILLO  " + Math.floor(remain / TILE) + " m  →", VIEW_W / 2, 28);
+    ctx.fillText(zname + "  ·  " + Math.floor(remain / TILE) + " m  →", VIEW_W / 2, 28);
+
+    // Barra de Vida de Boss Activo
+    const activeBoss = enemies.find((e) => !e.dead && ENEMY_TYPES[e.type].boss);
+    if (activeBoss) {
+      const bw = 400;
+      const bx = VIEW_W / 2 - bw / 2;
+      const by = 40;
+      ctx.fillStyle = "rgba(7,6,12,0.85)";
+      ctx.fillRect(bx, by, bw, 22);
+      const isOverheated = activeBoss.type === "radboss" && activeBoss.state === "overheat";
+      const isCharging = activeBoss.type === "radboss" && activeBoss.state === "charge";
+      ctx.strokeStyle = isOverheated ? "#5cf6ff" : (isCharging ? "#ffe600" : (activeBoss.type === "radboss" ? "#ff7b00" : "#ef233c"));
+      ctx.lineWidth = 2;
+      ctx.strokeRect(bx, by, bw, 22);
+
+      const hpRatio = clamp(activeBoss.hp / activeBoss.maxHp, 0, 1);
+      ctx.fillStyle = isOverheated ? "#5cf6ff" : (isCharging ? "#ffe600" : (activeBoss.type === "radboss" ? "#ff3c00" : "#ef233c"));
+      ctx.fillRect(bx + 2, by + 2, (bw - 4) * hpRatio, 18);
+
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 11px Courier New";
+      ctx.textAlign = "center";
+      let statusTag = "";
+      if (activeBoss.type === "radboss") {
+        if (isOverheated) statusTag = " [¡NUCLEO EXPUESTO! 2X DANO]";
+        else if (isCharging) statusTag = " [¡ALERTA: SOBRECARGA!]";
+        else statusTag = " [ARMADURA ACTIVA: 35% DANO]";
+      }
+      ctx.fillText(ENEMY_TYPES[activeBoss.type].name.toUpperCase() + statusTag, VIEW_W / 2, by + 15);
+    }
 
     ctx.strokeStyle = p.charging ? "#5cf6ff" : "#e0b33a";
     ctx.lineWidth = 2;
@@ -1365,29 +1668,29 @@
   }
 
   function panel(title, lines) {
-    ctx.fillStyle = "rgba(0,0,0,0.66)";
+    ctx.fillStyle = "rgba(0,0,0,0.72)";
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     ctx.fillStyle = "#07060c";
-    roundRect(VIEW_W / 2 - 300, 60, 600, 420, 6);
+    roundRect(VIEW_W / 2 - 320, 50, 640, 440, 6);
     ctx.fill();
     ctx.strokeStyle = "#e0b33a";
     ctx.lineWidth = 3;
-    roundRect(VIEW_W / 2 - 300, 60, 600, 420, 6);
+    roundRect(VIEW_W / 2 - 320, 50, 640, 440, 6);
     ctx.stroke();
     ctx.strokeStyle = "#5cf6ff";
     ctx.lineWidth = 1;
-    roundRect(VIEW_W / 2 - 294, 66, 588, 408, 4);
+    roundRect(VIEW_W / 2 - 314, 56, 628, 428, 4);
     ctx.stroke();
     ctx.fillStyle = "#5cf6ff";
-    ctx.font = "bold 34px Courier New";
+    ctx.font = "bold 32px Courier New";
     ctx.textAlign = "center";
-    ctx.fillText(title, VIEW_W / 2, 122);
+    ctx.fillText(title, VIEW_W / 2, 108);
     ctx.fillStyle = "#e0b33a";
     ctx.font = "bold 14px Courier New";
-    ctx.fillText("PROTOCOLO BELMONT", VIEW_W / 2, 148);
+    ctx.fillText("PROTOCOLO BELMONT", VIEW_W / 2, 134);
     ctx.fillStyle = "#d0d6e0";
     ctx.font = "13px Courier New";
-    let yy = 188;
+    let yy = 175;
     for (const ln of lines) {
       ctx.fillText(ln, VIEW_W / 2, yy);
       yy += 22;
@@ -1398,19 +1701,19 @@
     sky();
     if (state === "menu") {
       drawBg();
-      panel("YAEL", [
-        "Armadura MJOLNIR. Sangre de Belmont. Lava viva.",
-        "Llega al castillo. Un arma a la vez.",
+      panel("YAEL — PROTOCOLO BELMONT", [
+        "Armadura MJOLNIR. Fuego Radiactivo. Lava Viva.",
+        "Cruza los dos sectores y destruye a las amenazas alienigenas.",
         "",
-        "A / D  caminar     S  agachar     W  saltar",
-        "Mouse  apuntar     Clic izq.  disparar",
-        "Clic der.  mantener para especial cargado",
-        "E  cambiar arma     P  pausa     M  silencio",
+        "NIVEL 1: Castillo & Gyojin de Lava",
+        "NIVEL 2: Reactor Radiactivo (Estrellas Verdes & Titan Naranja)",
         "",
-        "MA5B · Magnum · Escopeta · Plasma",
-        "Los gyojin emergen de la lava. El salto llega alto.",
+        "CONTROLES:",
+        "A / D: Moverse    S: Agacharse    W / Espacio: Saltar",
+        "Mouse: Apuntar    Clic Izq: Disparar    Clic Der: Especial",
+        "E: Cambiar Arma   P: Pausa        M: Silencio",
         "",
-        "ENTER o clic para empezar",
+        "ENTER o Clic para Empezar  |  Presiona 1 o 2 para elegir Nivel",
       ]);
       return;
     }
@@ -1439,11 +1742,39 @@
       ctx.textAlign = "center";
       ctx.fillText("PAUSA", VIEW_W / 2, VIEW_H / 2);
     }
+    if (state === "level_clear") {
+      panel("¡NIVEL 1 SUPERADO!", [
+        "Has atravesado la fortaleza y vencido al Rey Marino.",
+        "Siguiente mision: REACTOR RADIACTIVO (NIVEL 2).",
+        "",
+        "¡Cuidado con las Estrellas Radiactivas voladoras!",
+        "El Titan Naranja tiene armadura pesada (35% dano).",
+        "¡Espera su ataque telegrafiado y castiga su nucleo (2X dano)!",
+        "",
+        "Reliquias acumuladas: " + (coins | 0) + "    Bajas: " + kills,
+        "",
+        "Presiona ENTER o ESPACIO para avanzar al Nivel 2",
+      ]);
+    }
     if (state === "dead") {
-      panel("CAIDA", ["Yael cayo ante los gyojin de lava.", "Reliquias: " + (coins | 0) + "    Bajas: " + kills, "", "ENTER o R para reintentar"]);
+      panel("CAIDA EN COMBATE", [
+        "Yael cayo en " + levelName,
+        "Reliquias: " + (coins | 0) + "    Bajas: " + kills,
+        "",
+        "ENTER o R para reintentar este nivel",
+        "Presiona 1 para Nivel 1  |  2 para Nivel 2",
+      ]);
     }
     if (state === "win") {
-      panel("CASTILLO", ["Protocolo cumplido. El portal cede.", "Reliquias: " + (coins | 0) + "    Bajas: " + kills, "", "ENTER o R para otra caceria"]);
+      panel("¡VICTORIA TOTAL!", [
+        "Protocolo Belmont completado.",
+        "El Titan Radiactivo y el Reactor han sido destruidos.",
+        "",
+        "Reliquias totales: " + (coins | 0) + "    Bajas: " + kills,
+        "Vidas restantes: " + lives,
+        "",
+        "ENTER o R para jugar de nuevo (1: Nivel 1, 2: Nivel 2)",
+      ]);
     }
   }
 
@@ -1461,7 +1792,10 @@
     draw();
     requestAnimationFrame(loop);
   }
-  if (/\bplay=1\b/.test(location.search)) startGame();
+
+  const urlParams = new URLSearchParams(location.search);
+  const urlLvl = parseInt(urlParams.get("lvl") || urlParams.get("level") || "1", 10);
+  if (/\bplay=1\b/.test(location.search)) startGame(urlLvl || 1);
   draw();
   requestAnimationFrame(loop);
 })();
