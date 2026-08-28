@@ -1,0 +1,36 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: #050308;
+  overflow: hidden;
+  font-family: "Courier New", Courier, monospace;
+}
+
+#frame {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse at center, #14081c 0%, #050308 70%);
+}
+
+#game {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  background: #0b1020;
+  box-shadow:
+    0 0 0 3px #c9a227,
+    0 0 0 7px #1a1028,
+    0 0 0 9px #5cf6ff,
+    0 24px 80px rgba(92, 246, 255, 0.18);
+  cursor: none;
+}
