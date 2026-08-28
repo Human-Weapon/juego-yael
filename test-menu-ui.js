@@ -49,6 +49,8 @@ const instrumented = source.replace(marker, `  requestAnimationFrame(loop);
       window.__YAEL_MOUSE_DOWN_HANDLER__({ button: 0, preventDefault() {} });
     },
     characterSelect(level) { openCharacterSelect(level); },
+    play() { startGame(1); player.x = 400; return { state, level: currentLevel, x: player.x }; },
+    session() { return { state, level: currentLevel, x: player && player.x }; },
     tick() { update(); },
     draw() { draw(); },
   };
@@ -111,6 +113,11 @@ try {
 check(!characterUpdateError, "la pantalla de personaje pausa la física mientras aún no hay jugador");
 ui.mouseDown(480, 470);
 check(ui.menu().state === "loadout", "el botón de confirmar personaje responde al clic");
+ui.play();
+ui.mouseDown(750, 96);
+check(ui.session().state === "play" && ui.session().level === 1 && ui.session().x < 200, "el botón REINICIAR reinicia la partida actual");
+ui.mouseDown(888, 96);
+check(ui.menu().state === "menu", "el botón MENÚ vuelve a la selección de nivel");
 
 if (failures) {
   console.error(`\nMENU UI CHECK FAILED: ${failures} problema(s)`);

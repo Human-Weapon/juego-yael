@@ -4,7 +4,7 @@
   "private": true,
   "description": "Campaña de acción y plataformas de Yael.",
   "scripts": {
-    "test": "node test-physics.js && node test-level-variety.js && node test-ai-personality.js && node test-combat-regressions.js && node test-roster-and-hazards.js && node test-arsenal.js && node test-sprite-animation.js && node test-menu-ui.js && py -3 tools/test_run_game_benchmark.py",
+    "test": "node test-physics.js && node test-level-variety.js && node test-ai-personality.js && node test-tile-visibility.js && node test-combat-regressions.js && node test-roster-and-hazards.js && node test-arsenal.js && node test-sprite-animation.js && node test-menu-ui.js && py -3 tools/test_run_game_benchmark.py",
     "check": "node --check game.js && node --check level.js && node --check sprites.js"
   },
   "engines": {

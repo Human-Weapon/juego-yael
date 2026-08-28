@@ -58,13 +58,14 @@
   // mantiene como referencia de control; Ágil gana verticalidad a cambio de
   // supervivencia y Pesado sustituye por completo el salto por escalada.
   const CHARACTERS = [
-    { id: "classic", name: "CLASICO", title: "YAEL CLASICO", maxHp: 5, run: 1, acc: 1, airAcc: 1, jump: -12.1, holdGravity: 0.36, gravity: 0.42, maxFall: 11.2, climb: false, color: "#ffe29a", description: "5 corazones · salto controlado" },
-    { id: "agile", name: "AGIL", title: "SCOUT AGIL", maxHp: 2, run: 1.28, acc: 1.18, airAcc: 1.22, jump: -15.4, holdGravity: 0.45, gravity: 0.56, maxFall: 14.2, airJumps: 1, climb: false, color: "#5cf6ff", description: "2 corazones · veloz · doble salto" },
-    { id: "heavy", name: "PESADO", title: "ESCALADOR PESADO", maxHp: 8, run: 0.72, acc: 0.78, airAcc: 0.55, jump: 0, holdGravity: 0.4, gravity: 0.45, maxFall: 10, climb: true, climbSpeed: 3.1, color: "#ff9f1c", description: "8 corazones · escala, no salta" },
+    { id: "classic", name: "CLASICO", title: "YAEL CLASICO", maxHp: 5, run: 1, acc: 1, airAcc: 1, jump: -12.1, holdGravity: 0.36, gravity: 0.42, maxFall: 11.2, reloadMultiplier: 1, ammoMultiplier: 1, dashSpeed: 12, dashFrames: 8, dashInv: 30, dashCooldown: 42, climb: false, color: "#ffe29a", description: "5 corazones · salto controlado" },
+    { id: "agile", name: "AGIL", title: "SCOUT AGIL", maxHp: 2, run: 2, acc: 2, airAcc: 2, jump: -18, holdGravity: 0.72, gravity: 0.84, maxFall: 22.4, reloadMultiplier: 0.5, ammoMultiplier: 1, dashSpeed: 15, dashFrames: 9, dashInv: 30, dashCooldown: 45, airJumps: 1, climb: false, color: "#5cf6ff", description: "2 corazones · 2× velocidad · doble salto" },
+    { id: "heavy", name: "PESADO", title: "ESCALADOR PESADO", maxHp: 16, run: 0.72, acc: 0.78, airAcc: 0.55, jump: 0, holdGravity: 0.4, gravity: 0.45, maxFall: 10, reloadMultiplier: 1, ammoMultiplier: 2, dashSpeed: 19, dashFrames: 26, dashInv: 30, dashCooldown: 150, dashDamage: 42, dashKnockback: 9, climb: true, climbSpeed: 3.1, color: "#ff9f1c", description: "16 corazones · munición doble · escala" },
   ];
 
   const keys = Object.create(null);
   const mouse = { x: VIEW_W / 2, y: VIEW_H / 2, left: false, right: false, leftClick: false, rightClick: false };
+  const dashTap = { left: -9999, right: -9999 };
 
   let state = "menu";
   let currentLevel = 1;
@@ -424,6 +425,19 @@
     if (k === "e" && state === "play") cycleWeapon();
     if (k === "q" && state === "play") cycleSpecial();
     if (k === "r" && state === "play") beginReload();
+    if (k === "escape" && state === "play") {
+      state = "menu";
+      menuSelectedLevel = currentLevel || 1;
+      menuPage = Math.floor((menuSelectedLevel - 1) / 4);
+      pauseBGM();
+    }
+    if (state === "play" && !e.repeat && (k === "a" || k === "arrowleft" || k === "d" || k === "arrowright")) {
+      const direction = (k === "a" || k === "arrowleft") ? -1 : 1;
+      const slot = direction < 0 ? "left" : "right";
+      const doubled = time - dashTap[slot] <= 16;
+      dashTap[slot] = time;
+      if (doubled) startDash(direction);
+    }
     if (k === "r" && (state === "dead" || state === "win" || state.startsWith("level_clear"))) startGame(currentLevel);
   });
   window.addEventListener("keyup", (e) => {
@@ -465,6 +479,13 @@
     menuSelectedLevel = first + slot + 1;
   }
 
+  function gameControlAt(x, y) {
+    if (y < 84 || y > 110) return "";
+    if (x >= VIEW_W - 268 && x < VIEW_W - 140) return "restart";
+    if (x >= VIEW_W - 132 && x <= VIEW_W - 12) return "menu";
+    return "";
+  }
+
   canvas.addEventListener("mousemove", (e) => {
     const r = canvas.getBoundingClientRect();
     mouse.x = ((e.clientX - r.left) / r.width) * VIEW_W;
@@ -479,6 +500,22 @@
   canvas.addEventListener("mousedown", (e) => {
     e.preventDefault();
     ensureAudio();
+    if (state === "play" && e.button === 0) {
+      const control = gameControlAt(mouse.x, mouse.y);
+      if (control === "restart") {
+        mouse.left = mouse.leftClick = false;
+        startGame(currentLevel);
+        return;
+      }
+      if (control === "menu") {
+        mouse.left = mouse.leftClick = false;
+        state = "menu";
+        menuSelectedLevel = currentLevel || 1;
+        menuPage = Math.floor((menuSelectedLevel - 1) / 4);
+        pauseBGM();
+        return;
+      }
+    }
     if (e.button === 0) {
       mouse.left = true;
       mouse.leftClick = true;
@@ -553,10 +590,11 @@
       airJumpsLeft: character.airJumps || 0,
       weapon: equippedWeapons[0] || 0,
       special: equippedSpecials[0] || 0,
-      ammo: WEAPONS.map((w) => w.magazine),
+      ammo: WEAPONS.map((w) => magazineCapacity(w, character)),
       cool: 0,
       reloading: false,
       reloadTimer: 0,
+      reloadDuration: 0,
       heat: 0,
       overheated: false,
       specialCool: 0,
@@ -569,6 +607,11 @@
       trapped: false,
       grabEscape: 0,
       climbing: false,
+      dashTimer: 0,
+      dashMoveTimer: 0,
+      dashCool: 0,
+      dashDir: 1,
+      dashSerial: 0,
     };
   }
 
@@ -604,6 +647,7 @@
     bossDefeated = false;
     checkpointIndex = 0;
     player = makePlayer();
+    dashTap.left = dashTap.right = -9999;
 
     if (isVerticalLevel) {
       player.x = (lvl.verticalStartX === undefined ? 18 : lvl.verticalStartX) * TILE;
@@ -719,9 +763,11 @@
   function beginReload() {
     if (!player || player.dead || player.reloading) return;
     const w = WEAPONS[player.weapon];
-    if (!Number.isFinite(w.magazine) || player.ammo[player.weapon] >= w.magazine) return;
+    const capacity = magazineCapacity(w, player.move);
+    if (!Number.isFinite(capacity) || player.ammo[player.weapon] >= capacity) return;
     player.reloading = true;
-    player.reloadTimer = w.reload;
+    player.reloadDuration = Math.max(1, Math.round(w.reload * (player.move.reloadMultiplier || 1)));
+    player.reloadTimer = player.reloadDuration;
     player.cool = Math.max(player.cool, 8);
     floatText(player.x + player.w / 2, player.y - 16, "RECARGANDO", w.accent);
     sfx.switch();
@@ -735,6 +781,45 @@
   }
   function overlap(a, b) {
     return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  function magazineCapacity(weapon, profile) {
+    if (!Number.isFinite(weapon.magazine)) return Infinity;
+    return Math.max(1, Math.round(weapon.magazine * ((profile && profile.ammoMultiplier) || 1)));
+  }
+
+  function startDash(direction) {
+    const p = player;
+    if (!p || p.dead || state !== "play" || p.dashCool > 0 || p.trapped || p.stunTimer > 0 || !direction) return false;
+    // No encoge/expande la hitbox en medio de una bóveda baja: primero hay
+    // que levantarse de forma legal. Así el dash no crea una pared fantasma.
+    if (p.crouch) return false;
+    const profile = p.move || CHARACTERS[0];
+    p.dashDir = direction < 0 ? -1 : 1;
+    p.facing = p.dashDir;
+    p.dashTimer = Math.max(1, profile.dashInv || 30);
+    p.dashMoveTimer = Math.max(1, profile.dashFrames || 8);
+    p.dashCool = Math.max(1, profile.dashCooldown || 42);
+    p.dashSerial++;
+    p.vx = p.dashDir * (profile.dashSpeed || 12);
+    p.vy = 0;
+    burst(p.x + p.w / 2, p.y + p.h * 0.62, profile.color, 7);
+    sfx.switch();
+    return true;
+  }
+
+  function hitEnemiesWithHeavyDash(p, profile) {
+    if (!profile.dashDamage || !p.dashMoveTimer) return;
+    const hitbox = { x: p.x - 5, y: p.y + 4, w: p.w + 10, h: Math.max(8, p.h - 8) };
+    for (const en of enemies) {
+      if (en.dead || en.state === "emerge" || en.heavyDashSerial === p.dashSerial || !overlap(hitbox, en)) continue;
+      en.heavyDashSerial = p.dashSerial;
+      hurtEnemy(en, profile.dashDamage);
+      en.vx = p.dashDir * (profile.dashKnockback || 0);
+      en.vy = Math.min(en.vy || 0, -2.8);
+      floatText(en.x + en.w / 2, en.y - 10, "EMBESTIDA", "#ff9f1c");
+      burst(en.x + en.w / 2, en.y + en.h / 2, "#ff9f1c", 7);
+    }
   }
 
   // Un proyectil rápido no puede limitarse a comprobar su punto final: el
@@ -1364,7 +1449,7 @@
   }
 
   function hurtPlayer(dmg) {
-    if (player.inv > 0 || player.dead) return;
+    if (player.inv > 0 || player.dashTimer > 0 || player.dead) return;
     player.hp -= dmg;
     player.inv = 80;
     sfx.hurt();
@@ -1390,6 +1475,9 @@
     p.vx = 0;
     p.vy = 0;
     p.inv = 160;
+    p.dashTimer = 0;
+    p.dashMoveTimer = 0;
+    p.dashCool = 0;
     p.inLava = false;
     p.trapped = false;
     p.stunTimer = 0;
@@ -1486,8 +1574,10 @@
 
     const isStunned = p.stunTimer > 0;
     const isTrapped = p.trapped;
+    const profile = p.move || CHARACTERS[0];
+    const dashing = p.dashMoveTimer > 0;
 
-    const wantCrouch = !isStunned && !isTrapped && !!(keys.s || keys.arrowdown) && p.onGround;
+    const wantCrouch = !dashing && !isStunned && !isTrapped && !!(keys.s || keys.arrowdown) && p.onGround;
     if (wantCrouch && !p.crouch) {
       p.y += PHYS.PLAYER_H - PHYS.CROUCH_H;
       p.h = PHYS.CROUCH_H;
@@ -1503,7 +1593,6 @@
       }
     }
 
-    const profile = p.move || CHARACTERS[0];
     const max = (p.crouch ? PHYS.CROUCH_RUN : PHYS.RUN) * profile.run;
     const acc = (p.onGround ? PHYS.ACC : PHYS.AIR_ACC) * (p.onGround ? profile.acc : profile.airAcc);
     let ax = 0;
@@ -1511,14 +1600,19 @@
       if (keys.a || keys.arrowleft) ax -= 1;
       if (keys.d || keys.arrowright) ax += 1;
     }
-    if (ax !== 0) p.vx += ax * acc;
-    else p.vx *= p.onGround ? PHYS.FRICTION : PHYS.AIR_FRICTION;
-    p.vx = clamp(p.vx, -max, max);
+    if (dashing) {
+      p.vx = p.dashDir * (profile.dashSpeed || 12);
+      p.vy = 0;
+    } else {
+      if (ax !== 0) p.vx += ax * acc;
+      else p.vx *= p.onGround ? PHYS.FRICTION : PHYS.AIR_FRICTION;
+      p.vx = clamp(p.vx, -max, max);
+    }
 
     const jumpHeld = holdingJump();
     const jumpPressed = jumpHeld && !p.jumpHeld;
     p.jumpHeld = jumpHeld;
-    if (!profile.climb && !isStunned && !isTrapped && jumpPressed) p.jumpBuf = PHYS.JUMP_BUF;
+    if (!dashing && !profile.climb && !isStunned && !isTrapped && jumpPressed) p.jumpBuf = PHYS.JUMP_BUF;
     if (p.onGround) {
       p.coyote = PHYS.COYOTE;
       p.airJumpsLeft = profile.airJumps || 0;
@@ -1527,7 +1621,7 @@
     let jumped = false;
     const canGroundJump = p.coyote > 0;
     const canAirJump = !p.onGround && p.airJumpsLeft > 0;
-    if (!profile.climb && !isStunned && !isTrapped && p.jumpBuf > 0 && (canGroundJump || canAirJump) && !p.crouch) {
+    if (!dashing && !profile.climb && !isStunned && !isTrapped && p.jumpBuf > 0 && (canGroundJump || canAirJump) && !p.crouch) {
       p.vy = profile.jump;
       p.onGround = false;
       p.jumpBuf = 0;
@@ -1541,9 +1635,9 @@
       sfx.jump();
     }
 
-    const climbed = profile.climb && !isStunned && !isTrapped && ax !== 0 && tryHeavyClimb(p, Math.sign(ax), profile.climbSpeed);
+    const climbed = !dashing && profile.climb && !isStunned && !isTrapped && ax !== 0 && tryHeavyClimb(p, Math.sign(ax), profile.climbSpeed);
     p.climbing = climbed;
-    if (!jumped && !climbed && !isTrapped) {
+    if (!dashing && !jumped && !climbed && !isTrapped) {
       if (!holdingJump() && p.vy < -3.2) p.vy *= 0.52;
       const g = p.vy < 0 && holdingJump() ? profile.holdGravity : profile.gravity;
       p.vy += g;
@@ -1553,6 +1647,11 @@
     p.inLava = false;
     p.fell = false;
     if (!isTrapped && !climbed) moveActor(p);
+    if (dashing) {
+      hitEnemiesWithHeavyDash(p, profile);
+      p.dashMoveTimer--;
+      if (Math.abs(p.vx) < 0.01) p.dashMoveTimer = 0;
+    }
 
     if (isVerticalLevel && verticalHazard) {
       if (risingLavaY > 26 * TILE) {
@@ -1591,6 +1690,8 @@
     const m = mouseWorld();
     p.facing = m.x >= p.x + p.w / 2 ? 1 : -1;
     if (p.inv > 0) p.inv--;
+    if (p.dashTimer > 0) p.dashTimer--;
+    if (p.dashCool > 0) p.dashCool--;
     if (p.cool > 0) p.cool--;
     if (p.specialCool > 0) p.specialCool--;
     if (p.parryTimer > 0) p.parryTimer--;
@@ -1598,7 +1699,7 @@
       p.reloadTimer--;
       if (p.reloadTimer <= 0) {
         p.reloading = false;
-        p.ammo[p.weapon] = WEAPONS[p.weapon].magazine;
+        p.ammo[p.weapon] = magazineCapacity(WEAPONS[p.weapon], p.move);
         floatText(p.x + p.w / 2, p.y - 16, "LISTA", WEAPONS[p.weapon].accent);
       }
     }
@@ -2858,7 +2959,7 @@
           floatText(u.x, u.y, "+VIDA", "#ef233c");
         } else {
           const active = WEAPONS[player.weapon];
-          if (Number.isFinite(active.magazine)) player.ammo[player.weapon] = active.magazine;
+          if (Number.isFinite(active.magazine)) player.ammo[player.weapon] = magazineCapacity(active, player.move);
           player.reloading = false;
           player.heat = Math.max(0, player.heat - 45);
           floatText(u.x, u.y, "CARGADOR / REFRIGERANTE", active.accent);
@@ -3094,6 +3195,23 @@
       ctx.fillRect(x + 28, y + 22, 6, 3);
       ctx.fillStyle = "#1a1c18";
       ctx.fillRect(x + 18, y + 16, 12, 14);
+    } else if (id === T.BLOCK) {
+      // BLOCK se usa en murallas y ascensores. Al ser sólido debe leerse de
+      // inmediato como construcción, no como una celda vacía del fondo.
+      ctx.fillStyle = "#101925";
+      ctx.fillRect(x, y, TILE, TILE);
+      ctx.fillStyle = "#26394a";
+      ctx.fillRect(x + 2, y + 2, TILE - 4, TILE - 4);
+      ctx.fillStyle = "#5cf6ff";
+      ctx.fillRect(x + 4, y + 4, TILE - 8, 3);
+      ctx.fillStyle = "#e0b33a";
+      ctx.fillRect(x + 5, y + TILE - 8, TILE - 10, 3);
+      ctx.fillStyle = "#0a0f16";
+      ctx.fillRect(x + 7, y + 12, 10, 7);
+      ctx.fillRect(x + 29, y + 26, 10, 7);
+      ctx.fillStyle = "#8b9bb4";
+      ctx.fillRect(x + 9, y + 14, 3, 3);
+      ctx.fillRect(x + 31, y + 28, 3, 3);
     } else if (id === T.BRIDGE) {
       ctx.fillStyle = "#3b0610";
       ctx.fillRect(x, y + 28, TILE, 20);
@@ -3241,12 +3359,13 @@
 
   function drawPlayer() {
     const p = player;
-    if (p.inv > 0 && Math.floor(p.inv / 3) % 2 === 0 && !p.dead) return;
+    if (p.inv > 0 && p.dashTimer <= 0 && Math.floor(p.inv / 3) % 2 === 0 && !p.dead) return;
     const feetX = p.x + p.w / 2 - cam.x;
     const feetY = p.y + p.h - cam.y;
     const hero = (SPR.heroes && SPR.heroes[p.character]) || SPR.player;
     let frame = hero.idle;
-    if (p.climbing && hero.climb) frame = hero.climb;
+    if (p.dashMoveTimer > 0 && hero.dash) frame = hero.dash;
+    else if (p.climbing && hero.climb) frame = hero.climb;
     else if (p.crouch) frame = hero.crouch;
     else if (!p.onGround) frame = hero.jump;
     else if (mouse.left && hero.fire) frame = hero.fire;
@@ -3262,6 +3381,15 @@
       ctx.translate(-feetX, -feetY);
     }
     blit(frame, feetX, feetY, p.facing < 0);
+
+    if (p.dashMoveTimer > 0) {
+      ctx.save();
+      ctx.globalAlpha = 0.32;
+      ctx.fillStyle = p.move.color;
+      const trailW = Math.min(34, Math.max(12, (p.move.dashSpeed || 12) * 1.8));
+      ctx.fillRect(feetX - p.facing * trailW, feetY - 22, p.facing * trailW, 8);
+      ctx.restore();
+    }
 
     const g = gunPos();
     const m = mouseWorld();
@@ -3661,27 +3789,30 @@
     const p = player;
     const w = WEAPONS[p.weapon];
     ctx.fillStyle = "rgba(7,6,12,0.62)";
-    ctx.fillRect(12, 12, 318, 82);
+    ctx.fillRect(12, 12, 318, 88);
     ctx.strokeStyle = "#e0b33a";
     ctx.lineWidth = 2;
-    ctx.strokeRect(12, 12, 318, 82);
+    ctx.strokeRect(12, 12, 318, 88);
     ctx.fillStyle = "#5cf6ff";
     ctx.font = "bold 14px Courier New";
     ctx.textAlign = "left";
     ctx.fillText("YAEL  [" + (levelName.split(":")[0] || "NIVEL 1") + "]", 24, 32);
+    const heartColumns = p.maxHp > 8 ? 8 : 12;
     for (let i = 0; i < p.maxHp; i++) {
       ctx.fillStyle = i < p.hp ? "#ef233c" : "#2a1014";
-      const hx = 86 + i * 20;
-      ctx.fillRect(hx, 20, 7, 7);
-      ctx.fillRect(hx + 7, 20, 7, 7);
-      ctx.fillRect(hx + 2, 25, 11, 9);
+      const hx = 104 + (i % heartColumns) * 25;
+      const hy = 18 + Math.floor(i / heartColumns) * 16;
+      ctx.fillRect(hx, hy, 7, 7);
+      ctx.fillRect(hx + 7, hy, 7, 7);
+      ctx.fillRect(hx + 2, hy + 5, 11, 9);
     }
     ctx.fillStyle = "#e0b33a";
     ctx.fillText("RELIQUIAS " + (coins | 0), 24, 54);
     ctx.fillStyle = "#8b9bb4";
     ctx.fillText("VIDAS " + lives, 180, 54);
     ctx.fillStyle = w.accent;
-    const ammoText = w.id === "minigun" ? "CALOR " + Math.round(p.heat) + "%" : p.ammo[p.weapon] + "/" + w.magazine + (p.reloading ? " · RECARGANDO" : " · RESERVA ∞");
+    const capacity = magazineCapacity(w, p.move);
+    const ammoText = w.id === "minigun" ? "CALOR " + Math.round(p.heat) + "%" : p.ammo[p.weapon] + "/" + capacity + (p.reloading ? " · RECARGANDO" : " · RESERVA ∞");
     ctx.fillText(w.short + "  " + ammoText, 24, 76);
 
     if (p.stunTimer > 0) {
@@ -3703,7 +3834,7 @@
     ctx.fillText("E arma · Q especial · R recarga", VIEW_W - 24, 48);
     ctx.fillStyle = "#222";
     ctx.fillRect(VIEW_W - 256, 56, 232, 10);
-    const weaponRatio = w.id === "minigun" ? p.heat / 100 : (p.reloading ? 1 - p.reloadTimer / w.reload : p.ammo[p.weapon] / w.magazine);
+    const weaponRatio = w.id === "minigun" ? p.heat / 100 : (p.reloading ? 1 - p.reloadTimer / Math.max(1, p.reloadDuration) : p.ammo[p.weapon] / capacity);
     ctx.fillStyle = p.overheated ? "#ef233c" : (p.reloading ? "#ffe600" : w.accent);
     ctx.fillRect(VIEW_W - 256, 56, 232 * clamp(weaponRatio, 0, 1), 10);
     const special = SPECIALS[p.special];
@@ -3711,6 +3842,25 @@
     ctx.textAlign = "left";
     ctx.font = "9px Courier New";
     ctx.fillText("RMB " + special.name + (p.specialCool > 0 ? " · " + Math.ceil(p.specialCool / 60) + "s" : " · LISTO"), VIEW_W - 254, 64);
+
+    const dashReady = p.dashTimer > 0 ? "DASH ACTIVO" : (p.dashCool > 0 ? "DASH " + Math.ceil(p.dashCool / 6) / 10 + "s" : "DASH LISTO");
+    ctx.font = "bold 9px Courier New";
+    ctx.fillStyle = p.dashTimer > 0 ? p.move.color : (p.dashCool > 0 ? "#8b9bb4" : "#72f1b8");
+    ctx.fillText(dashReady + " · DOBLE A/D", VIEW_W - 254, 76);
+
+    const drawControl = (x, label, accent) => {
+      const hovered = mouse.x >= x && mouse.x <= x + 120 && mouse.y >= 84 && mouse.y <= 110;
+      ctx.fillStyle = hovered ? accent : "rgba(7,6,12,.86)";
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = hovered ? 2 : 1;
+      roundRect(x, 84, 120, 26, 4); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = hovered ? "#07060c" : accent;
+      ctx.font = "bold 9px Courier New";
+      ctx.textAlign = "center";
+      ctx.fillText(label, x + 60, 101);
+    };
+    drawControl(VIEW_W - 268, "↻ REINICIAR", "#ffe600");
+    drawControl(VIEW_W - 132, "↩ MENÚ [ESC]", "#5cf6ff");
 
     let zname = "SECTOR";
     let distText = "";
@@ -4184,16 +4334,23 @@
       const c = CHARACTERS[i]; const selected = characterCursor === i; const x = 54 + i * 290; const y = 126;
       ctx.fillStyle = selected ? "rgba(30,58,68,.96)" : "rgba(15,18,28,.9)"; roundRect(x, y, 260, 292, 8); ctx.fill();
       ctx.strokeStyle = selected ? c.color : "#343a4a"; ctx.lineWidth = selected ? 4 : 1; roundRect(x, y, 260, 292, 8); ctx.stroke();
-      const hero = SPR.heroes && SPR.heroes[c.id]; const frame = hero && (selected ? hero.fire : hero.idle);
-      if (frame) ctx.drawImage(frame, x + 106, y + 18, 48, 60);
-      ctx.fillStyle = c.color; ctx.font = "bold 17px Courier New"; ctx.fillText((selected ? "▶ " : "") + c.title, x + 130, y + 103);
-      ctx.fillStyle = "#fff"; ctx.font = "bold 13px Courier New"; ctx.fillText(c.maxHp + " CORAZONES", x + 130, y + 137);
-      ctx.fillStyle = "#aeb8ca"; ctx.font = "11px Courier New"; ctx.fillText(c.description, x + 130, y + 166);
+      const hero = SPR.heroes && SPR.heroes[c.id]; const frame = hero && (hero.select || hero.idle);
+      if (selected) {
+        ctx.save();
+        ctx.fillStyle = c.color;
+        ctx.globalAlpha = 0.14 + Math.sin(time * 0.09) * 0.04;
+        ctx.beginPath(); ctx.arc(x + 130, y + 64, 76, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+      if (frame) ctx.drawImage(frame, x + 82, y + 8, 96, 120);
+      ctx.fillStyle = c.color; ctx.font = "bold 17px Courier New"; ctx.fillText((selected ? "▶ " : "") + c.title, x + 130, y + 151);
+      ctx.fillStyle = "#fff"; ctx.font = "bold 13px Courier New"; ctx.fillText(c.maxHp + " CORAZONES", x + 130, y + 181);
+      ctx.fillStyle = "#aeb8ca"; ctx.font = "11px Courier New"; ctx.fillText(c.description, x + 130, y + 208);
       const speedText = c.climb ? "MOVIMIENTO: LENTO · ESCALADA" : "VELOCIDAD: " + (c.run > 1 ? "ALTA" : "MEDIA") + " · SALTO " + (c.jump < -14 ? "ALTO" : "CONTROLADO");
-      ctx.fillStyle = "#8b9bb4"; ctx.font = "10px Courier New"; ctx.fillText(speedText, x + 130, y + 195);
-      if (c.climb) { ctx.fillStyle = "#ff9f1c"; ctx.font = "bold 10px Courier New"; ctx.fillText("SIN SALTO · SUBE MUROS", x + 130, y + 220); }
-      else if (c.id === "agile") { ctx.fillStyle = "#5cf6ff"; ctx.font = "bold 10px Courier New"; ctx.fillText("CAÍDA RÁPIDA · GRAN ALTURA", x + 130, y + 220); }
-      else { ctx.fillStyle = "#ffe29a"; ctx.font = "bold 10px Courier New"; ctx.fillText("EQUILIBRIO Y CONTROL", x + 130, y + 220); }
+      ctx.fillStyle = "#8b9bb4"; ctx.font = "10px Courier New"; ctx.fillText(speedText, x + 130, y + 238);
+      if (c.climb) { ctx.fillStyle = "#ff9f1c"; ctx.font = "bold 10px Courier New"; ctx.fillText("SIN SALTO · EMBESTIDA DE ASALTO", x + 130, y + 265); }
+      else if (c.id === "agile") { ctx.fillStyle = "#5cf6ff"; ctx.font = "bold 10px Courier New"; ctx.fillText("2× MOVIMIENTO · RECARGA 50%", x + 130, y + 265); }
+      else { ctx.fillStyle = "#ffe29a"; ctx.font = "bold 10px Courier New"; ctx.fillText("DASH CORTO · EQUILIBRIO Y CONTROL", x + 130, y + 265); }
       if (selected) { ctx.fillStyle = "#ffe600"; ctx.font = "bold 26px Courier New"; ctx.fillText("▶", x + 12, y + 42); }
     }
     const active = CHARACTERS[characterCursor];

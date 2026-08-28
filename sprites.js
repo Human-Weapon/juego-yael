@@ -773,6 +773,11 @@ kwwwwww9ffffccccccccccccccccffff9wwwwwwk
       "agile_run_extra1", "agile_run_extra2",
       "heavy_run_extra1", "heavy_run_extra2",
     ], 48, 60, { transparentBackground: true });
+    const heroActionArt = atlasFrames("assets/sprites/heroes-actions-v1.png", 3, 3, [
+      "classic_crouch", "classic_dash", "classic_select",
+      "agile_crouch", "agile_dash", "agile_select",
+      "heavy_crouch", "heavy_dash", "heavy_select",
+    ], 48, 60, { transparentBackground: true });
     const seakingArt = atlasFrames("assets/sprites/seaking-frames-v1.png", 4, 1, ["idle", "walk", "shoot", "attack"], 144, 104);
     const scenery = atlasFrames("assets/sprites/scenery-atlas-v1.png", 3, 2, ["ruin", "barricade", "tree", "train", "bunker", "arch"], 156, 116);
     const gelArt = atlasFrames("assets/sprites/inertia-gel-frames-v1.png", 3, 1, ["blob", "puddle", "ripple"], 82, 34);
@@ -783,9 +788,9 @@ kwwwwww9ffffccccccccccccccccffff9wwwwwwk
       campaignSprites[type] = { idle: artSet[type], walk: artSet[type + "__walk"], shoot: artSet[type + "__action"] };
     }
     const heroes = {
-      classic: { idle: heroArt.classic_idle, run1: heroArt.classic_run, run2: heroRunArt.classic_run_extra1, run3: heroRunArt.classic_run_extra2, runFrames: [heroArt.classic_run, heroRunArt.classic_run_extra1, heroRunArt.classic_run_extra2], jump: heroArt.classic_jump, crouch: heroArt.classic_idle__walk, fire: heroArt.classic_fire },
-      agile: { idle: heroArt.agile_idle, run1: heroArt.agile_run, run2: heroRunArt.agile_run_extra1, run3: heroRunArt.agile_run_extra2, runFrames: [heroArt.agile_run, heroRunArt.agile_run_extra1, heroRunArt.agile_run_extra2], jump: heroArt.agile_jump, crouch: heroArt.agile_idle__walk, fire: heroArt.agile_fire },
-      heavy: { idle: heroArt.heavy_idle, run1: heroArt.heavy_run, run2: heroRunArt.heavy_run_extra1, run3: heroRunArt.heavy_run_extra2, runFrames: [heroArt.heavy_run, heroRunArt.heavy_run_extra1, heroRunArt.heavy_run_extra2], jump: heroArt.heavy_climb, crouch: heroArt.heavy_idle__walk, fire: heroArt.heavy_fire, climb: heroArt.heavy_climb },
+      classic: { idle: heroArt.classic_idle, run1: heroArt.classic_run, run2: heroRunArt.classic_run_extra1, run3: heroRunArt.classic_run_extra2, runFrames: [heroArt.classic_run, heroRunArt.classic_run_extra1, heroRunArt.classic_run_extra2], jump: heroArt.classic_jump, crouch: heroActionArt.classic_crouch, dash: heroActionArt.classic_dash, select: heroActionArt.classic_select, fire: heroArt.classic_fire },
+      agile: { idle: heroArt.agile_idle, run1: heroArt.agile_run, run2: heroRunArt.agile_run_extra1, run3: heroRunArt.agile_run_extra2, runFrames: [heroArt.agile_run, heroRunArt.agile_run_extra1, heroRunArt.agile_run_extra2], jump: heroArt.agile_jump, crouch: heroActionArt.agile_crouch, dash: heroActionArt.agile_dash, select: heroActionArt.agile_select, fire: heroArt.agile_fire },
+      heavy: { idle: heroArt.heavy_idle, run1: heroArt.heavy_run, run2: heroRunArt.heavy_run_extra1, run3: heroRunArt.heavy_run_extra2, runFrames: [heroArt.heavy_run, heroRunArt.heavy_run_extra1, heroRunArt.heavy_run_extra2], jump: heroArt.heavy_climb, crouch: heroActionArt.heavy_crouch, dash: heroActionArt.heavy_dash, select: heroActionArt.heavy_select, fire: heroArt.heavy_fire, climb: heroArt.heavy_climb },
     };
     Object.assign(seaking, { idle: seakingArt.idle, walk: seakingArt.walk, shoot: seakingArt.shoot, attack: seakingArt.attack });
     Object.assign(guns, weaponArt);
