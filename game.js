@@ -347,15 +347,26 @@
     if (["arrowup", "arrowdown", "arrowleft", "arrowright", " ", "w", "a", "s", "d"].includes(k)) e.preventDefault();
 
     if (state === "menu") {
-      if (k === "arrowleft" || k === "a") {
-        menuSelectedLevel = menuSelectedLevel === 1 ? Math.max(1, CAMPAIGN.length) : menuSelectedLevel - 1;
-        menuPage = Math.floor((menuSelectedLevel - 1) / 4);
+      // A/D recorren páginas completas. Las flechas horizontales siguen
+      // moviendo el foco entre las tarjetas visibles, de modo que ambas
+      // formas de navegación sean predecibles en teclado.
+      if (k === "a") {
+        stepMenuPage(-1);
         sfx.switch();
         return;
       }
-      if (k === "arrowright" || k === "d") {
-        menuSelectedLevel = menuSelectedLevel === Math.max(1, CAMPAIGN.length) ? 1 : menuSelectedLevel + 1;
-        menuPage = Math.floor((menuSelectedLevel - 1) / 4);
+      if (k === "d") {
+        stepMenuPage(1);
+        sfx.switch();
+        return;
+      }
+      if (k === "arrowleft") {
+        moveMenuSelection(-1);
+        sfx.switch();
+        return;
+      }
+      if (k === "arrowright") {
+        moveMenuSelection(1);
         sfx.switch();
         return;
       }
@@ -422,6 +433,31 @@
     if (col < 0 || col > 3) return 0;
     const num = menuPage * 4 + col + 1;
     return num <= CAMPAIGN.length ? num : 0;
+  }
+
+  function menuPageCount() {
+    return Math.max(1, Math.ceil(CAMPAIGN.length / 4));
+  }
+
+  function menuSlot() {
+    return (Math.max(1, menuSelectedLevel) - 1) % 4;
+  }
+
+  function stepMenuPage(delta) {
+    const count = menuPageCount();
+    const slot = menuSlot();
+    menuPage = (menuPage + delta + count) % count;
+    const first = menuPage * 4;
+    const last = Math.min(CAMPAIGN.length, first + 4);
+    menuSelectedLevel = clamp(first + Math.min(slot, Math.max(0, last - first - 1)) + 1, 1, CAMPAIGN.length);
+  }
+
+  function moveMenuSelection(delta) {
+    const first = menuPage * 4;
+    const visibleCount = Math.min(4, Math.max(0, CAMPAIGN.length - first));
+    if (!visibleCount) return;
+    const slot = (menuSlot() + delta + visibleCount) % visibleCount;
+    menuSelectedLevel = first + slot + 1;
   }
 
   canvas.addEventListener("mousemove", (e) => {
@@ -3892,9 +3928,75 @@
     ctx.fillText("A / D: Moverse   S: Agacharse   W / Espacio: Saltar   E: Armas   P: Pausa   M: Silencio", VIEW_W / 2, 484);
   }
 
+  function drawSelectionAura(x, y, width, height, color) {
+    const pulse = 0.72 + Math.sin(time * 0.1) * 0.12;
+    ctx.save();
+    // Halo sutil: el color se percibe sin tapar el texto de la tarjeta.
+    ctx.globalAlpha = 0.08 * pulse;
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 24 + pulse * 8;
+    roundRect(x - 8, y - 8, width + 16, height + 16, 13);
+    ctx.fill();
+
+    ctx.globalAlpha = 0.28 * pulse;
+    ctx.shadowBlur = 10;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    roundRect(x - 5, y - 5, width + 10, height + 10, 11);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawMenuCursor() {
+    const x = Math.round(mouse.x);
+    const y = Math.round(mouse.y);
+    if (x < -24 || y < -36 || x > VIEW_W + 8 || y > VIEW_H + 8) return;
+    const accent = state === "menu" ? "#ffe600" : "#5cf6ff";
+    const pulse = 0.78 + Math.sin(time * 0.14) * 0.12;
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.globalAlpha = 0.16 * pulse;
+    ctx.fillStyle = accent;
+    ctx.shadowColor = accent;
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+    ctx.arc(7, 10, 13 + pulse * 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Puntero dibujado dentro del canvas para que permanezca visible sobre
+    // las tarjetas aunque el navegador o la captura oculten el cursor nativo.
+    ctx.globalAlpha = 1;
+    ctx.shadowColor = "#05070c";
+    ctx.shadowBlur = 4;
+    ctx.fillStyle = "#fff8d6";
+    ctx.strokeStyle = "#05070c";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, 25);
+    ctx.lineTo(7, 19);
+    ctx.lineTo(13, 31);
+    ctx.lineTo(18, 28);
+    ctx.lineTo(11, 16);
+    ctx.lineTo(20, 16);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(3, 5);
+    ctx.lineTo(3, 20);
+    ctx.lineTo(8, 16);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   function drawLevelSelectMenu() {
     drawBg();
-    const pageCount = Math.max(1, Math.ceil(CAMPAIGN.length / 4));
+    const pageCount = menuPageCount();
     menuPage = clamp(menuPage, 0, pageCount - 1);
     const first = menuPage * 4;
     const visible = CAMPAIGN.slice(first, first + 4);
@@ -3937,7 +4039,14 @@
     ctx.fillText("CAMPAÑA · ACTO " + selectedAct + " · PÁGINA " + (menuPage + 1) + "/" + pageCount, VIEW_W / 2, 72);
     ctx.fillStyle = "#8b9bb4";
     ctx.font = "10px Courier New";
-    ctx.fillText("Derrota al jefe para desbloquear el siguiente nivel · Flechas / A-D para explorar", VIEW_W / 2, 91);
+    ctx.fillText("A: PÁGINA ANTERIOR · D: PÁGINA SIGUIENTE · ← / →: NIVEL · CLIC: ELEGIR", VIEW_W / 2, 91);
+    ctx.fillStyle = "#ffe29a";
+    ctx.font = "bold 11px Courier New";
+    ctx.textAlign = "left";
+    ctx.fillText("◀ A", 46, 72);
+    ctx.textAlign = "right";
+    ctx.fillText("D ▶", VIEW_W - 46, 72);
+    ctx.textAlign = "center";
 
     const cardW = 200;
     const cardH = 292;
@@ -3948,6 +4057,7 @@
       const selected = menuSelectedLevel === c.num;
       const unlocked = levelIsUnlocked(c.num);
       const color = palette[(c.num - 1) % palette.length];
+      if (selected) drawSelectionAura(x, cardY, cardW, cardH, color);
       ctx.save();
       ctx.fillStyle = selected ? "rgba(22, 28, 48, 0.98)" : "rgba(12, 14, 24, 0.82)";
       roundRect(x, cardY, cardW, cardH, 8);
@@ -4107,14 +4217,17 @@
     sky();
     if (state === "menu") {
       drawLevelSelectMenu();
+      drawMenuCursor();
       return;
     }
     if (state === "character_select") {
       drawCharacterSelect();
+      drawMenuCursor();
       return;
     }
     if (state === "loadout") {
       drawLoadout();
+      drawMenuCursor();
       return;
     }
 

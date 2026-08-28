@@ -32,5 +32,7 @@ html, body {
     0 0 0 7px #1a1028,
     0 0 0 9px #5cf6ff,
     0 24px 80px rgba(92, 246, 255, 0.18);
+  /* El juego dibuja un puntero pixel-art propio en los menús y un retículo
+     de apuntado durante la partida, ambos por encima del lienzo. */
   cursor: none;
 }

@@ -23,6 +23,7 @@ Luego visita `http://127.0.0.1:8765`.
 | Cambiar arma / especial | E / Q |
 | Recargar | R |
 | Pausa | P |
+| Menú de campaña | A/D cambia de página · ←/→ cambia de nivel · clic o Enter elige |
 
 El Ágil tiene doble salto; el Pesado no salta, pero escala paredes sólidas.
 
@@ -45,4 +46,5 @@ node test-ai-personality.js
 node test-combat-regressions.js
 node test-roster-and-hazards.js
 node test-arsenal.js
+node test-menu-ui.js
 ```
