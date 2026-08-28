@@ -17,6 +17,8 @@ const ctx = new Proxy({}, {
 });
 
 const listeners = Object.create(null);
+const classicIdleFrame = { tag: "classic-idle" };
+const unloadedClassicSelectFrame = { tag: "classic-select-unloaded", ready: false };
 const canvas = {
   style: {}, width: 960, height: 540,
   getContext: () => ctx,
@@ -26,7 +28,12 @@ const canvas = {
 const storage = new Map([["yael_campaign_unlocked", "1"], ["yael_arsenal_v2", "{}"]]);
 const windowMock = {
   YAEL_LEVEL: L,
-  YAEL_SPRITES: { get: () => ({ guns: {} }) },
+  YAEL_SPRITES: { get: () => ({
+    guns: {},
+    heroes: {
+      classic: { idle: classicIdleFrame, select: unloadedClassicSelectFrame },
+    },
+  }) },
   innerWidth: 1280,
   innerHeight: 720,
   addEventListener: (name, fn) => { listeners[`window:${name}`] = fn; },
@@ -104,6 +111,9 @@ ui.draw();
 check(calls.some((call) => call.key === "translate"), "el puntero pixel-art se dibuja por encima del menú");
 
 ui.characterSelect(1);
+calls.length = 0;
+ui.draw();
+check(calls.some((call) => call.key === "drawImage" && call.args[0] === classicIdleFrame), "la selección usa un sprite visible de respaldo mientras carga la pose nueva");
 let characterUpdateError = null;
 try {
   ui.tick();

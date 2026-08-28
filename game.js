@@ -58,7 +58,7 @@
   // mantiene como referencia de control; Ágil gana verticalidad a cambio de
   // supervivencia y Pesado sustituye por completo el salto por escalada.
   const CHARACTERS = [
-    { id: "classic", name: "CLASICO", title: "YAEL CLASICO", maxHp: 5, run: 1, acc: 1, airAcc: 1, jump: -12.1, holdGravity: 0.36, gravity: 0.42, maxFall: 11.2, reloadMultiplier: 1, ammoMultiplier: 1, dashSpeed: 12, dashFrames: 8, dashInv: 30, dashCooldown: 42, climb: false, color: "#ffe29a", description: "5 corazones · salto controlado" },
+    { id: "classic", name: "CLÁSICO", title: "CLÁSICO", maxHp: 5, run: 1, acc: 1, airAcc: 1, jump: -12.1, holdGravity: 0.36, gravity: 0.42, maxFall: 11.2, reloadMultiplier: 1, ammoMultiplier: 1, dashSpeed: 12, dashFrames: 8, dashInv: 30, dashCooldown: 42, climb: false, color: "#ffe29a", description: "5 corazones · salto controlado" },
     { id: "agile", name: "AGIL", title: "SCOUT AGIL", maxHp: 2, run: 2, acc: 2, airAcc: 2, jump: -18, holdGravity: 0.72, gravity: 0.84, maxFall: 22.4, reloadMultiplier: 0.5, ammoMultiplier: 1, dashSpeed: 15, dashFrames: 9, dashInv: 30, dashCooldown: 45, airJumps: 1, climb: false, color: "#5cf6ff", description: "2 corazones · 2× velocidad · doble salto" },
     { id: "heavy", name: "PESADO", title: "ESCALADOR PESADO", maxHp: 16, run: 0.72, acc: 0.78, airAcc: 0.55, jump: 0, holdGravity: 0.4, gravity: 0.45, maxFall: 10, reloadMultiplier: 1, ammoMultiplier: 2, dashSpeed: 19, dashFrames: 26, dashInv: 30, dashCooldown: 150, dashDamage: 42, dashKnockback: 9, climb: true, climbSpeed: 3.1, color: "#ff9f1c", description: "16 corazones · munición doble · escala" },
   ];
@@ -4334,7 +4334,7 @@
       const c = CHARACTERS[i]; const selected = characterCursor === i; const x = 54 + i * 290; const y = 126;
       ctx.fillStyle = selected ? "rgba(30,58,68,.96)" : "rgba(15,18,28,.9)"; roundRect(x, y, 260, 292, 8); ctx.fill();
       ctx.strokeStyle = selected ? c.color : "#343a4a"; ctx.lineWidth = selected ? 4 : 1; roundRect(x, y, 260, 292, 8); ctx.stroke();
-      const hero = SPR.heroes && SPR.heroes[c.id]; const frame = hero && (hero.select || hero.idle);
+      const hero = SPR.heroes && SPR.heroes[c.id]; const frame = hero && (hero.select && hero.select.ready ? hero.select : hero.idle);
       if (selected) {
         ctx.save();
         ctx.fillStyle = c.color;

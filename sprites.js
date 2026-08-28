@@ -706,14 +706,17 @@ kwwwwww9ffffccccccccccccccccffff9wwwwwwk
         const frame = document.createElement("canvas");
         frame.width = frameW;
         frame.height = frameH;
+        frame.ready = false;
         frames[name] = frame;
         const walk = document.createElement("canvas");
         walk.width = frameW;
         walk.height = frameH;
+        walk.ready = false;
         frames[name + "__walk"] = walk;
         const action = document.createElement("canvas");
         action.width = frameW;
         action.height = frameH;
+        action.ready = false;
         frames[name + "__action"] = action;
         return { frame, walk, action };
       });
@@ -744,6 +747,7 @@ kwwwwww9ffffccccccccccccccccffff9wwwwwwk
           paint(target.frame, 0, 1, false);
           paint(target.walk, 2, 0.965, false);
           paint(target.action, -1, 1.04, true);
+          target.frame.ready = target.walk.ready = target.action.ready = true;
           if (options && options.transparentBackground) {
             removeConnectedLightBackground(target.frame);
             removeConnectedLightBackground(target.walk);
