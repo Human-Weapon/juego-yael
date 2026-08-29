@@ -1757,6 +1757,7 @@
     p.dashTimer = 0;
     p.dashMoveTimer = 0;
     p.dashCool = 0;
+    p.anim = 0;
     p.inLava = false;
     p.trapped = false;
     p.stunTimer = 0;
@@ -2003,7 +2004,10 @@
     if (p.overheated && p.heat <= 32) p.overheated = false;
     if (p.jumpBuf > 0) p.jumpBuf--;
     if (p.coyote > 0) p.coyote--;
-    p.anim += Math.abs(p.vx) * 0.16 + 0.06;
+    // El reloj de animación es independiente de la velocidad: el Ágil no
+    // salta poses por correr al doble y el Pesado no queda pegado a un cuadro
+    // por frenar. La física conserva su velocidad original.
+    p.anim += Math.abs(p.vx) > 0.5 ? 1 : 0.05;
 
     if (!isStunned) {
       if (mouse.rightClick) useSpecial();
@@ -3706,24 +3710,38 @@
     ctx.restore();
   }
 
+  function readySprite(frame) {
+    return frame && frame.ready !== false ? frame : null;
+  }
+
+  function firstReadySprite() {
+    for (const frame of arguments) {
+      const ready = readySprite(frame);
+      if (ready) return ready;
+    }
+    return null;
+  }
+
   function drawPlayer() {
     const p = player;
     if (p.inv > 0 && p.dashTimer <= 0 && Math.floor(p.inv / 3) % 2 === 0 && !p.dead) return;
     const feetX = p.x + p.w / 2 - cam.x;
     const feetY = p.y + p.h - cam.y;
-    const hero = (SPR.heroes && SPR.heroes[p.character]) || SPR.player;
-    const fallback = (SPR.player && SPR.player.idle) || hero.idle;
-    const visibleFrame = (candidate) => candidate && candidate.ready !== false ? candidate : fallback;
+    const hero = (SPR.heroes && SPR.heroes[p.character]) || {};
+    const fallback = firstReadySprite(SPR.player && SPR.player.idle, hero.idle);
+    const visibleFrame = (...candidates) => firstReadySprite(...candidates, fallback);
     let frame = visibleFrame(hero.idle);
-    if (p.dashMoveTimer > 0 && hero.dash) frame = visibleFrame(hero.dash);
-    else if (p.climbing && hero.climb) frame = visibleFrame(hero.climb);
-    else if (p.crouch) frame = visibleFrame(hero.crouch);
-    else if (!p.onGround) frame = visibleFrame(hero.jump);
-    else if (mouse.left && hero.fire) frame = visibleFrame(hero.fire);
+    if (p.dashMoveTimer > 0 && hero.dash) frame = visibleFrame(hero.dash, hero.idle);
+    else if (p.climbing && hero.climb) frame = visibleFrame(hero.climb, hero.idle);
+    else if (p.crouch) frame = visibleFrame(hero.crouch, hero.idle);
+    else if (!p.onGround) frame = visibleFrame(hero.jump, hero.idle);
+    else if (mouse.left && hero.fire) frame = visibleFrame(hero.fire, hero.idle);
     else if (Math.abs(p.vx) > 0.5) {
       const runFrames = (hero.runFrames || [hero.run1, hero.run2]).filter((candidate) => candidate && candidate.ready !== false);
-      frame = runFrames.length ? runFrames[Math.floor(p.anim) % runFrames.length] : visibleFrame(hero.idle);
+      frame = runFrames.length ? runFrames[Math.floor(p.anim / 4) % runFrames.length] : visibleFrame(hero.idle);
     }
+
+    if (!frame) return;
 
     ctx.save();
     if (p.dead) {
@@ -3732,26 +3750,6 @@
       ctx.translate(-feetX, -feetY);
     }
     blit(frame, feetX, feetY, p.facing < 0);
-
-    // Los tres nuevos perfiles usan el atlas base mientras se conservan sus
-    // siluetas propias en selección. Este distintivo mantiene visible en
-    // partida qué perfil está activo incluso sin añadir otro PNG al paquete.
-    if (!SPR.heroes || !SPR.heroes[p.character]) {
-      ctx.save();
-      ctx.strokeStyle = p.move.color;
-      ctx.lineWidth = 2;
-      ctx.globalAlpha = 0.9;
-      if (p.character === "medic") {
-        ctx.strokeRect(feetX - 13, feetY - 38, 26, 30);
-        ctx.fillStyle = p.move.color; ctx.fillRect(feetX - 2, feetY - 31, 4, 14); ctx.fillRect(feetX - 7, feetY - 26, 14, 4);
-      } else if (p.character === "technician") {
-        ctx.strokeRect(feetX - 13, feetY - 38, 26, 30);
-        ctx.beginPath(); ctx.moveTo(feetX + 7, feetY - 38); ctx.lineTo(feetX + 14, feetY - 48); ctx.stroke();
-      } else if (p.character === "phantom") {
-        ctx.beginPath(); ctx.moveTo(feetX, feetY - 48); ctx.lineTo(feetX + 13, feetY - 23); ctx.lineTo(feetX, feetY - 8); ctx.lineTo(feetX - 13, feetY - 23); ctx.closePath(); ctx.stroke();
-      }
-      ctx.restore();
-    }
 
     if (p.dashMoveTimer > 0) {
       ctx.save();
@@ -3934,12 +3932,15 @@
       drawEnemyHealth(en);
       return;
     }
-    let frame = Math.floor(en.anim) % 2 === 0 ? set.idle : set.walk;
+    const locomotionFrame = Math.floor(en.anim) % 2 === 0 ? set.idle : set.walk;
+    let frame = locomotionFrame;
 
     if (def && def.behavior === "boss") {
       if (en.state === "telegraph" || en.state === "recover" || en.currentAttack) frame = set.shoot || frame;
       else if (Math.abs(en.vx) > 0.18) frame = set.walk || frame;
     } else if (en.lastDecision === "shield_pulse" || (def && (def.behavior === "turret" || def.behavior === "sniper") && en.cool < 18)) {
+      frame = set.shoot || frame;
+    } else if (en.lastDecision === "drop_bomb" || (def && (def.behavior === "flyer" || def.behavior === "shooter") && en.lastDecision === "intercept")) {
       frame = set.shoot || frame;
     }
 
@@ -4000,6 +4001,13 @@
       if (en.state === "charge" && set.charge) frame = set.charge;
       else if (en.state === "attack" && set.attack) frame = set.attack;
       else if (en.state === "overheat" && set.overheat) frame = set.overheat;
+    }
+
+    frame = firstReadySprite(frame, locomotionFrame, set.walk, set.idle);
+    if (!frame) {
+      drawFallbackEnemy(en, def, x, y);
+      drawEnemyHealth(en);
+      return;
     }
 
     ctx.save();
@@ -4888,7 +4896,8 @@
       const x = 54 + (i % 3) * 290; const y = 100 + Math.floor(i / 3) * 174;
       ctx.fillStyle = selected ? "rgba(30,58,68,.96)" : "rgba(15,18,28,.9)"; roundRect(x, y, 260, 156, 8); ctx.fill();
       ctx.strokeStyle = selected ? c.color : "#343a4a"; ctx.lineWidth = selected ? 4 : 1; roundRect(x, y, 260, 156, 8); ctx.stroke();
-      const hero = SPR.heroes && SPR.heroes[c.id]; const frame = hero && (hero.select && hero.select.ready ? hero.select : hero.idle);
+      const hero = SPR.heroes && SPR.heroes[c.id];
+      const frame = firstReadySprite(hero && hero.select, hero && hero.idle, SPR.player && SPR.player.idle);
       if (selected) {
         ctx.save(); ctx.fillStyle = c.color; ctx.globalAlpha = 0.14 + Math.sin(time * 0.09) * 0.04;
         ctx.beginPath(); ctx.arc(x + 50, y + 57, 48, 0, Math.PI * 2); ctx.fill(); ctx.restore();

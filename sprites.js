@@ -810,12 +810,12 @@ kwwwwww9ffffccccccccccccccccffff9wwwwwwk
       "classic_idle", "classic_run", "classic_jump", "classic_fire",
       "agile_idle", "agile_run", "agile_jump", "agile_fire",
       "heavy_idle", "heavy_run", "heavy_climb", "heavy_fire",
-    ], 48, 60);
+    ], 48, 60, { transparentBackground: true, fitContent: true });
     const heroRunArt = atlasFrames("assets/sprites/heroes-run-frames-v2.png", 2, 3, [
       "classic_run_extra1", "classic_run_extra2",
       "agile_run_extra1", "agile_run_extra2",
       "heavy_run_extra1", "heavy_run_extra2",
-    ], 48, 60, { transparentBackground: true });
+    ], 48, 60, { transparentBackground: true, fitContent: true });
     const classicRunArt = atlasFrames("assets/sprites/heroes-classic-run-v4.png", 3, 1, [
       "classic_run_extra1", "classic_run_extra2", "classic_run_extra3",
     ], 48, 60, { transparentBackground: true, fitContent: true });
@@ -823,7 +823,21 @@ kwwwwww9ffffccccccccccccccccffff9wwwwwwk
       "classic_crouch", "classic_dash", "classic_select",
       "agile_crouch", "agile_dash", "agile_select",
       "heavy_crouch", "heavy_dash", "heavy_select",
-    ], 48, 60, { transparentBackground: true });
+    ], 48, 60, { transparentBackground: true, fitContent: true });
+    const newHeroMovementArt = atlasFrames("assets/sprites/heroes-new-frames-v1.png", 3, 3, [
+      "medic_idle", "medic_run1", "medic_run2",
+      "technician_idle", "technician_run1", "technician_run2",
+      "phantom_idle", "phantom_run1", "phantom_run2",
+    ], 48, 60, { transparentBackground: true, fitContent: true });
+    const newHeroActionArt = atlasFrames("assets/sprites/heroes-new-actions-v1.png", 3, 3, [
+      "medic_jump", "medic_crouch", "medic_dash",
+      "technician_jump", "technician_crouch", "technician_dash",
+      "phantom_jump", "phantom_crouch", "phantom_dash",
+    ], 48, 60, { transparentBackground: true, fitContent: true });
+    const newEnemyArt = atlasFrames("assets/sprites/enemies-new-frames-v1.png", 3, 2, [
+      "skimmer_idle", "skimmer_walk", "skimmer_attack",
+      "bombardier_idle", "bombardier_walk", "bombardier_attack",
+    ], 72, 72, { transparentBackground: true, fitContent: true });
     const seakingArt = atlasFrames("assets/sprites/seaking-frames-v1.png", 4, 1, ["idle", "walk", "shoot", "attack"], 144, 104);
     const scenery = atlasFrames("assets/sprites/scenery-atlas-v1.png", 3, 2, ["ruin", "barricade", "tree", "train", "bunker", "arch"], 156, 116);
     const gelArt = atlasFrames("assets/sprites/inertia-gel-frames-v1.png", 3, 1, ["blob", "puddle", "ripple"], 82, 34);
@@ -833,10 +847,15 @@ kwwwwww9ffffccccccccccccccccffff9wwwwwwk
       const artSet = i < 6 ? bossArtA : i < 12 ? bossArtB : bossArtC;
       campaignSprites[type] = { idle: artSet[type], walk: artSet[type + "__walk"], shoot: artSet[type + "__action"] };
     }
+    campaignSprites.skimmer = { idle: newEnemyArt.skimmer_idle, walk: newEnemyArt.skimmer_walk, shoot: newEnemyArt.skimmer_attack };
+    campaignSprites.bombardier = { idle: newEnemyArt.bombardier_idle, walk: newEnemyArt.bombardier_walk, shoot: newEnemyArt.bombardier_attack };
     const heroes = {
       classic: { idle: heroArt.classic_idle, run1: classicRunArt.classic_run_extra1, run2: classicRunArt.classic_run_extra2, run3: classicRunArt.classic_run_extra3, runFrames: [classicRunArt.classic_run_extra1, classicRunArt.classic_run_extra2, classicRunArt.classic_run_extra3], jump: heroArt.classic_jump, crouch: heroActionArt.classic_crouch, dash: heroActionArt.classic_dash, select: heroActionArt.classic_select, fire: heroArt.classic_fire },
       agile: { idle: heroArt.agile_idle, run1: heroArt.agile_run, run2: heroRunArt.agile_run_extra1, run3: heroRunArt.agile_run_extra2, runFrames: [heroArt.agile_run, heroRunArt.agile_run_extra1, heroRunArt.agile_run_extra2], jump: heroArt.agile_jump, crouch: heroActionArt.agile_crouch, dash: heroActionArt.agile_dash, select: heroActionArt.agile_select, fire: heroArt.agile_fire },
       heavy: { idle: heroArt.heavy_idle, run1: heroArt.heavy_run, run2: heroRunArt.heavy_run_extra1, run3: heroRunArt.heavy_run_extra2, runFrames: [heroArt.heavy_run, heroRunArt.heavy_run_extra1, heroRunArt.heavy_run_extra2], jump: heroArt.heavy_climb, crouch: heroActionArt.heavy_crouch, dash: heroActionArt.heavy_dash, select: heroActionArt.heavy_select, fire: heroArt.heavy_fire, climb: heroArt.heavy_climb },
+      medic: { idle: newHeroMovementArt.medic_idle, run1: newHeroMovementArt.medic_run1, run2: newHeroMovementArt.medic_run2, runFrames: [newHeroMovementArt.medic_run1, newHeroMovementArt.medic_run2], jump: newHeroActionArt.medic_jump, crouch: newHeroActionArt.medic_crouch, dash: newHeroActionArt.medic_dash, select: newHeroMovementArt.medic_idle, fire: newHeroMovementArt.medic_idle },
+      technician: { idle: newHeroMovementArt.technician_idle, run1: newHeroMovementArt.technician_run1, run2: newHeroMovementArt.technician_run2, runFrames: [newHeroMovementArt.technician_run1, newHeroMovementArt.technician_run2], jump: newHeroActionArt.technician_jump, crouch: newHeroActionArt.technician_crouch, dash: newHeroActionArt.technician_dash, select: newHeroMovementArt.technician_idle, fire: newHeroMovementArt.technician_idle },
+      phantom: { idle: newHeroMovementArt.phantom_idle, run1: newHeroMovementArt.phantom_run1, run2: newHeroMovementArt.phantom_run2, runFrames: [newHeroMovementArt.phantom_run1, newHeroMovementArt.phantom_run2], jump: newHeroActionArt.phantom_jump, crouch: newHeroActionArt.phantom_crouch, dash: newHeroActionArt.phantom_dash, select: newHeroMovementArt.phantom_idle, fire: newHeroMovementArt.phantom_idle },
     };
     Object.assign(seaking, { idle: seakingArt.idle, walk: seakingArt.walk, shoot: seakingArt.shoot, attack: seakingArt.attack });
     Object.assign(guns, weaponArt);
