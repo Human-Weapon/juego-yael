@@ -1,23 +1,23 @@
 "use strict";
 
 const fs = require("fs");
-const loading = require("./character-loading.js");
 const gameSource = fs.readFileSync("game.js", "utf8");
 const spritesSource = fs.readFileSync("sprites.js", "utf8");
+const indexSource = fs.readFileSync("index.html", "utf8");
 
 const check = (condition, message) => {
   if (!condition) throw new Error(`CHARACTER LOADING CHECK FAILED: ${message}`);
   console.log("OK  ", message);
 };
 
-const gate = loading.createGate(3);
-check(!loading.advanceGate(gate, false), "la pantalla sigue cargando antes del límite");
-check(!loading.advanceGate(gate, false), "un frame pendiente no abre prematuramente la selección");
-check(loading.advanceGate(gate, false), "un atlas que no responde no bloquea la selección indefinidamente");
+const selectionStart = gameSource.indexOf("function drawCharacterSelect()");
+const selectionEnd = gameSource.indexOf("function drawLoadout()", selectionStart);
+const characterSelectSource = gameSource.slice(selectionStart, selectionEnd);
 
-const readyGate = loading.createGate(30);
-check(loading.advanceGate(readyGate, false) === false && loading.advanceGate(readyGate, true), "un onload abre la selección inmediatamente");
-check(spritesSource.includes("sheet.onerror"), "los atlas tienen recuperación ante error de carga");
-check(gameSource.includes("CHARACTER_LOADING_TIMEOUT") && gameSource.includes("drawCharacterCardFallback"), "la pantalla ofrece un respaldo visible y un límite de carga");
+check(selectionStart >= 0 && selectionEnd > selectionStart, "la pantalla de selección existe");
+check(!characterSelectSource.includes("drawCharacterCardFallback"), "la selección no reemplaza sprites originales por figuras de respaldo");
+check(!gameSource.includes("CHARACTER_LOADING_TIMEOUT"), "la selección no abandona la carga de arte por un temporizador arbitrario");
+check(indexSource.includes("img-src 'self' data: file:"), "los PNG del juego se permiten al abrir el proyecto localmente");
+check(spritesSource.includes("sheet.onerror"), "los atlas registran un error de carga en vez de fallar en silencio");
 
 console.log("\nCHARACTER LOADING CHECK PASSED");

@@ -795,11 +795,12 @@ kwwwwww9ffffccccccccccccccccffff9wwwwwwk
         });
       };
       sheet.onerror = function () {
-        // No dejes un atlas pendiente para siempre: la pantalla de selección
-        // tiene un retrato por clase y puede continuar tras el límite de carga.
+        // Conserva el fallo en cada frame. El selector nunca sustituye este
+        // arte por figuras geométricas: espera los sprites originales.
         frames.failed = true;
         targets.forEach((target) => {
           target.failed = true;
+          target.frame.failed = target.walk.failed = target.action.failed = true;
         });
       };
       sheet.src = path;

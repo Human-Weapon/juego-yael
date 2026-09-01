@@ -3,20 +3,6 @@
 
   const L = window.YAEL_LEVEL;
   const SPR = window.YAEL_SPRITES.get();
-  const CHARACTER_LOADING = window.YAEL_CHARACTER_LOADING || {
-    createGate(timeoutFrames) {
-      return { frames: 0, timeoutFrames: Math.max(1, Math.round(timeoutFrames || 180)), opened: false, timedOut: false };
-    },
-    advanceGate(gate, ready) {
-      if (!gate || gate.opened) return true;
-      gate.frames++;
-      if (ready || gate.frames >= gate.timeoutFrames) {
-        gate.opened = true;
-        gate.timedOut = !ready;
-      }
-      return gate.opened;
-    },
-  };
   const HOOK_PHYSICS = window.YAEL_HOOK_PHYSICS;
   const { TILE, PHYS, T, solid, oneWay } = L;
 
@@ -28,7 +14,6 @@
   const CAMPAIGN = L.CAMPAIGN_LEVELS || [];
   const PROJECT_TITLE = "PROTOCOL OMEGA";
   const OFFICIAL_REPOSITORY = "https://github.com/Human-Weapon/protocol-omega";
-  const CHARACTER_LOADING_TIMEOUT = 180;
 
   const WEAPONS = [
     {
@@ -190,7 +175,6 @@
   let selectedCharacter = 0;
   let characterCursor = 0;
   let characterTargetLevel = 1;
-  let characterLoadingGate = CHARACTER_LOADING.createGate(CHARACTER_LOADING_TIMEOUT);
 
   function loadCampaignProgress() {
     try {
@@ -904,7 +888,6 @@
     characterTargetLevel = clamp(levelNum, 1, CAMPAIGN.length);
     characterCursor = selectedCharacter;
     mouse.left = mouse.right = false;
-    characterLoadingGate = CHARACTER_LOADING.createGate(CHARACTER_LOADING_TIMEOUT);
     state = characterSpritesReady() ? "character_select" : "character_loading";
   }
 
@@ -3741,7 +3724,7 @@
     // Pausar aquí evita que el bucle intente actualizar un jugador null y
     // congele la pantalla con un TypeError en cada frame.
     if (state === "character_loading") {
-      if (CHARACTER_LOADING.advanceGate(characterLoadingGate, characterSpritesReady())) state = "character_select";
+      if (characterSpritesReady()) state = "character_select";
       return;
     }
     if (state === "pause" || state === "title" || state === "menu" || state === "character_select" || state === "loadout" || state === "credits" || state === "dead") return;
@@ -4089,19 +4072,6 @@
     return null;
   }
 
-  // Respaldo inmediato y diferenciado para el primer fotograma: los atlas
-  // son imágenes grandes y pueden tardar en disparar onload. Nunca se debe
-  // reutilizar el sprite del Clásico para representar a otra clase.
-  function drawPlayableFallback(character, feetX, feetY) {
-    const width = character && character.id === "heavy" ? 62 : character && character.id === "agile" ? 48 : 52;
-    const height = character && character.id === "heavy" ? 76 : 70;
-    drawCharacterIcon(character || { id: "classic", color: "#5cf6ff" }, feetX - width / 2, feetY - height, width, height);
-  }
-
-  function drawPlayerFallback(character, feetX, feetY) {
-    drawPlayableFallback(character, feetX, feetY);
-  }
-
   function drawPlayer() {
     const p = player;
     if (p.inv > 0 && p.dashTimer <= 0 && Math.floor(p.inv / 3) % 2 === 0 && !p.dead) return;
@@ -4127,7 +4097,6 @@
       ctx.translate(-feetX, -feetY);
     }
     if (frame) blit(frame, feetX, feetY, p.facing < 0);
-    else drawPlayerFallback(p.move, feetX, feetY);
 
     if (p.dashMoveTimer > 0) {
       ctx.save();
@@ -5446,71 +5415,6 @@
     ctx.fillText("Progreso: " + Math.max(0, highestUnlockedLevel - 1) + "/" + CAMPAIGN.length + " jefes derrotados · P: Pausa · M: Silencio", VIEW_W / 2, 480);
   }
 
-  function drawCharacterIcon(character, x, y, w, h) {
-    const cx = x + w / 2;
-    const cy = y + h / 2;
-    ctx.save();
-    ctx.strokeStyle = character.color;
-    ctx.fillStyle = character.color;
-    ctx.lineWidth = 4;
-    if (character.id === "classic") {
-      // Casco, visor cian y capa roja: respaldo reconocible aunque aún no
-      // haya terminado de cargar el atlas de alta resolución.
-      ctx.fillStyle = "#172033"; ctx.fillRect(cx - 17, cy - 37, 34, 22); ctx.strokeRect(cx - 17, cy - 37, 34, 22);
-      ctx.fillStyle = "#5cf6ff"; ctx.fillRect(cx - 13, cy - 29, 26, 10);
-      ctx.fillStyle = "#16233a"; ctx.fillRect(cx - 20, cy - 12, 40, 29); ctx.strokeRect(cx - 20, cy - 12, 40, 29);
-      ctx.fillStyle = "#ef233c"; ctx.fillRect(cx - 27, cy - 8, 7, 25); ctx.fillRect(cx + 20, cy - 8, 7, 25);
-      ctx.fillStyle = "#0b1020"; ctx.fillRect(cx - 13, cy + 17, 10, 27); ctx.fillRect(cx + 3, cy + 17, 10, 27);
-      ctx.fillStyle = "#e0b33a"; ctx.fillRect(cx - 25, cy - 38, 7, 5); ctx.fillRect(cx + 18, cy - 38, 7, 5);
-    } else if (character.id === "agile") {
-      // Silueta ligera inclinada, trenza y dos estelas: comunica velocidad y
-      // la lectura de doble salto del Scout.
-      ctx.fillStyle = "#122837"; ctx.fillRect(cx - 12, cy - 20, 24, 29); ctx.strokeRect(cx - 12, cy - 20, 24, 29);
-      ctx.fillStyle = "#5cf6ff"; ctx.fillRect(cx - 10, cy - 34, 20, 12); ctx.strokeRect(cx - 10, cy - 34, 20, 12);
-      ctx.strokeStyle = "#d8fbff"; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(cx - 8, cy + 8); ctx.lineTo(cx - 25, cy + 36); ctx.moveTo(cx + 7, cy + 8); ctx.lineTo(cx + 26, cy + 28); ctx.stroke();
-      ctx.strokeStyle = "#5cf6ff"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cx - 16, cy - 20); ctx.lineTo(cx - 40, cy - 33); ctx.moveTo(cx - 18, cy - 15); ctx.lineTo(cx - 44, cy - 18); ctx.stroke();
-      ctx.strokeStyle = "#c77dff"; ctx.beginPath(); ctx.moveTo(cx + 14, cy + 2); ctx.lineTo(cx + 34, cy - 16); ctx.stroke();
-    } else if (character.id === "heavy") {
-      // Placas anchas, hombros y botas separadas: el respaldo del Pesado no
-      // se confunde con el cuerpo estrecho del Clásico.
-      ctx.fillStyle = "#3a3324"; ctx.fillRect(cx - 22, cy - 35, 44, 22); ctx.strokeRect(cx - 22, cy - 35, 44, 22);
-      ctx.fillStyle = "#ff9f1c"; ctx.fillRect(cx - 13, cy - 28, 26, 9);
-      ctx.fillStyle = "#25221b"; ctx.fillRect(cx - 28, cy - 9, 56, 32); ctx.strokeRect(cx - 28, cy - 9, 56, 32);
-      ctx.fillStyle = "#ff9f1c"; ctx.fillRect(cx - 36, cy - 7, 8, 27); ctx.fillRect(cx + 28, cy - 7, 8, 27);
-      ctx.fillStyle = "#171922"; ctx.fillRect(cx - 19, cy + 22, 15, 24); ctx.fillRect(cx + 4, cy + 22, 15, 24);
-      ctx.fillStyle = "#ffba08"; ctx.fillRect(cx - 24, cy + 44, 20, 5); ctx.fillRect(cx + 4, cy + 44, 20, 5);
-    } else if (character.id === "medic") {
-      ctx.beginPath(); ctx.arc(cx, cy - 19, 16, 0, Math.PI * 2); ctx.stroke();
-      ctx.fillRect(cx - 18, cy + 2, 36, 30);
-      ctx.fillStyle = "#07060c"; ctx.fillRect(cx - 4, cy - 28, 8, 18); ctx.fillRect(cx - 9, cy - 23, 18, 8);
-      ctx.fillStyle = "#07060c"; ctx.fillRect(cx - 5, cy + 9, 10, 18); ctx.fillRect(cx - 10, cy + 14, 20, 8);
-    } else if (character.id === "technician") {
-      ctx.fillRect(cx - 19, cy - 28, 38, 30);
-      ctx.beginPath(); ctx.moveTo(cx - 24, cy + 34); ctx.lineTo(cx, cy + 2); ctx.lineTo(cx + 24, cy + 34); ctx.closePath(); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(cx + 11, cy - 28); ctx.lineTo(cx + 28, cy - 48); ctx.stroke();
-      ctx.fillStyle = "#07060c"; ctx.fillRect(cx - 10, cy - 18, 20, 6); ctx.fillRect(cx - 4, cy + 10, 8, 14);
-    } else if (character.id === "phantom") {
-      ctx.beginPath(); ctx.moveTo(cx - 28, cy + 30); ctx.lineTo(cx - 24, cy - 4); ctx.lineTo(cx - 13, cy - 28); ctx.lineTo(cx, cy - 11); ctx.lineTo(cx + 13, cy - 28); ctx.lineTo(cx + 24, cy - 4); ctx.lineTo(cx + 28, cy + 30); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = "#07060c"; ctx.fillRect(cx - 19, cy - 12, 10, 8); ctx.fillRect(cx - 5, cy - 17, 10, 8); ctx.fillRect(cx + 9, cy - 12, 10, 8);
-      ctx.strokeStyle = "#ffe600"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(cx + 18, cy + 5); ctx.lineTo(cx + 45, cy - 17); ctx.stroke();
-    } else {
-      ctx.beginPath(); ctx.moveTo(cx, cy - 44); ctx.lineTo(cx + 25, cy); ctx.lineTo(cx, cy + 43); ctx.lineTo(cx - 25, cy); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = "#07060c"; ctx.fillRect(cx - 4, cy - 20, 8, 38);
-      ctx.strokeStyle = "rgba(247,37,133,.55)"; ctx.beginPath(); ctx.moveTo(cx - 28, cy + 30); ctx.lineTo(cx - 48, cy + 48); ctx.moveTo(cx + 28, cy + 30); ctx.lineTo(cx + 48, cy + 48); ctx.stroke();
-    }
-    ctx.restore();
-  }
-
-  function drawCharacterCardFallback(character, x, y, w, h) {
-    // El atlas puede fallar al abrir el juego desde un archivo local o con una
-    // red lenta. Este retrato por clase mantiene la tarjeta utilizable sin
-    // reutilizar el sprite del Clásico ni bloquear la campaña.
-    ctx.save();
-    ctx.globalAlpha = 0.92;
-    drawCharacterIcon(character, x, y, w, h);
-    ctx.restore();
-  }
-
   const CHARACTER_CARD_TEXT_WIDTH = 158;
   function fitCanvasFont(value, maxWidth, baseSize, minSize, weight) {
     const text = String(value || "");
@@ -5570,16 +5474,12 @@
       ctx.fillStyle = selected ? "rgba(30,58,68,.96)" : "rgba(15,18,28,.9)"; roundRect(x, y, 260, 156, 8); ctx.fill();
       ctx.strokeStyle = selected ? c.color : (available ? "#343a4a" : "#242938"); ctx.lineWidth = selected ? 4 : 1; roundRect(x, y, 260, 156, 8); ctx.stroke();
       const hero = SPR.heroes && SPR.heroes[c.id];
-      // El sprite histórico del Clásico no es un sustituto válido para las
-      // demás clases. Si el atlas aún carga, drawCharacterIcon mantiene la
-      // identidad visual de cada tarjeta.
       const frame = firstReadySprite(hero && hero.select, hero && hero.idle);
       if (selected) {
         ctx.save(); ctx.fillStyle = c.color; ctx.globalAlpha = 0.14 + Math.sin(time * 0.09) * 0.04;
         ctx.beginPath(); ctx.arc(x + 50, y + 57, 48, 0, Math.PI * 2); ctx.fill(); ctx.restore();
       }
       if (frame) ctx.drawImage(frame, x + 13, y + 8, 70, 88);
-      else drawCharacterCardFallback(c, x + 13, y + 8, 70, 88);
       ctx.textAlign = "left"; ctx.fillStyle = c.color;
       const characterTitle = (selected ? "▶ " : "") + c.title;
       ctx.font = fitCanvasFont(characterTitle, 164, 12, 8);
