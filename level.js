@@ -165,19 +165,19 @@
   const CAMPAIGN_LEVELS = [
     { num: 1, title: "PUERTO EN LLAMAS", theme: "costa", tag: "INTRO · 250 TILES", bossType: "hammer_shark", bossName: "MARTILLO ESCUALO", difficulty: 2, worldW: 250, enemyTypes: ["shark", "piranha", "skimmer"], mechanic: "marea" },
     { num: 2, title: "ALCANTARILLAS ABISALES", theme: "alcantarilla", tag: "TUNELES · 270 TILES", bossType: "sewer_kraken", bossName: "KRAKEN MENOR", difficulty: 3, worldW: 270, enemyTypes: ["octopus", "eel", "mine"], mechanic: "corriente" },
-    { num: 3, title: "BARRIO SUMERGIDO", theme: "inundado", tag: "RUTAS · 280 TILES", bossType: "siren_warlord", bossName: "SIRENA DE GUERRA", difficulty: 3, worldW: 280, enemyTypes: ["shark", "octopus", "piranha", "skimmer", "sniper"], mechanic: "inundacion" },
+    { num: 3, title: "BARRIO SUMERGIDO", theme: "inundado", tag: "TUTORIAL AGIL · 280 TILES", bossType: "agile_scout", bossName: "SCOUT AGIL", unlockCharacter: "agile", difficulty: 3, worldW: 280, enemyTypes: ["shark", "octopus", "piranha", "skimmer", "sniper"], mechanic: "inundacion" },
     { num: 4, title: "PUENTE DE MAGMA", theme: "magma", tag: "PERSECUCION · 290 TILES", bossType: "magma_eel_lord", bossName: "ANGUILA VOLCANICA", difficulty: 4, worldW: 290, enemyTypes: ["eel", "crab", "firebat"], mechanic: "puentes" },
-    { num: 5, title: "FORTALEZA DEL LITORAL", theme: "castillo", tag: "TIERRA · 240 TILES", bossType: "seaking", bossName: "REY MARINO", difficulty: 4, existing: "level1" },
-    { num: 6, title: "ARSENAL CAIDO", theme: "militar", tag: "ASALTO · 280 TILES", bossType: "crab_tank", bossName: "TANQUE CANGREJO", difficulty: 4, worldW: 280, enemyTypes: ["turret", "shield", "mine", "crab", "skimmer"], mechanic: "cobertura" },
+    { num: 5, title: "FORTALEZA DEL LITORAL", theme: "castillo", tag: "MAPA ORIGINAL · MAREA", bossType: "seaking", bossName: "REY MARINO", difficulty: 4, existing: "level1", mechanic: "marea" },
+    { num: 6, title: "ARSENAL CAIDO", theme: "militar", tag: "TUTORIAL PESADO · 280 TILES", bossType: "heavy_climber", bossName: "ESCALADOR PESADO", unlockCharacter: "heavy", difficulty: 4, worldW: 280, enemyTypes: ["turret", "shield", "mine", "crab", "skimmer"], mechanic: "cobertura" },
     { num: 7, title: "METRO FANTASMA", theme: "metro", tag: "TUNELES · 300 TILES", bossType: "ferro_worm", bossName: "GUSANO FERRICO", difficulty: 5, worldW: 300, enemyTypes: ["drone", "mine", "sniper", "slime"], mechanic: "trenes" },
     { num: 8, title: "ASTILLERO DE TORMENTA", theme: "astillero", tag: "GRUAS · 300 TILES", bossType: "admiral_octopus", bossName: "ALMIRANTE PULPO", difficulty: 5, worldW: 300, enemyTypes: ["octopus", "drone", "eel", "turret", "bombardier"], mechanic: "tormenta" },
-    { num: 9, title: "FORTALEZA DE CENIZA", theme: "ceniza", tag: "ASEDIO · 310 TILES", bossType: "ash_golem", bossName: "GOLEM DEL BASTION", difficulty: 5, worldW: 310, enemyTypes: ["shield", "crab", "firebat", "turret"], mechanic: "murallas" },
+    { num: 9, title: "FORTALEZA DE CENIZA", theme: "ceniza", tag: "TUTORIAL MEDICO · 310 TILES", bossType: "field_medic", bossName: "MEDICO DE CAMPAÑA", unlockCharacter: "medic", difficulty: 5, worldW: 310, enemyTypes: ["shield", "crab", "firebat", "turret"], mechanic: "murallas" },
     { num: 10, title: "COLISEO DE MAGMA", theme: "coliseo", tag: "ARENA · 320 TILES", bossType: "magma_emperor", bossName: "EMPERADOR CANGREJO", difficulty: 6, worldW: 320, enemyTypes: ["crab", "eel", "firebat", "mine", "bombardier"], mechanic: "oleadas" },
     { num: 11, title: "PANTANO TOXICO", theme: "toxico", tag: "GAS · 300 TILES", bossType: "spore_hydra", bossName: "HIDRA DE ESPORAS", difficulty: 6, worldW: 300, enemyTypes: ["slime", "spore", "piranha", "mutant"], mechanic: "gas" },
-    { num: 12, title: "PLANTA DE RESIDUOS", theme: "industrial", tag: "PRENSAS · 320 TILES", bossType: "gamma_excavator", bossName: "EXCAVADOR GAMMA", difficulty: 6, worldW: 320, enemyTypes: ["turret", "mine", "drone", "slime", "shield", "bombardier"], mechanic: "prensas" },
+    { num: 12, title: "PLANTA DE RESIDUOS", theme: "industrial", tag: "TUTORIAL TECNICA · 320 TILES", bossType: "field_technician", bossName: "TECNICA DE CAMPO", unlockCharacter: "technician", difficulty: 6, worldW: 320, enemyTypes: ["turret", "mine", "drone", "slime", "shield", "bombardier"], mechanic: "prensas" },
     { num: 13, title: "LABORATORIO FRACTURADO", theme: "laboratorio", tag: "MUTANTES · 310 TILES", bossType: "isotope_doctor", bossName: "DOCTOR ISOTOPO", difficulty: 7, worldW: 310, enemyTypes: ["mutant", "teleporter", "spore", "radstar"], mechanic: "teletransporte" },
     { num: 14, title: "TREN NUCLEAR", theme: "nuclear", tag: "CONVOY · 330 TILES", bossType: "atomic_locomotive", bossName: "LOCOMOTORA ATOMICA", difficulty: 7, worldW: 330, enemyTypes: ["drone", "shield", "sniper", "mine", "radstar", "bombardier"], mechanic: "convoy" },
-    { num: 15, title: "REACTOR RADIACTIVO", theme: "reactor", tag: "TOXICO · 260 TILES", bossType: "radboss", bossName: "TITAN RADIACTIVO", difficulty: 7, existing: "level2" },
+    { num: 15, title: "REACTOR RADIACTIVO", theme: "reactor", tag: "TUTORIAL FANTASMA · MAPA ORIGINAL", bossType: "cerberus", bossName: "CERBERO DE RETORNO", unlockCharacter: "phantom", difficulty: 7, existing: "level2", mechanic: "baliza" },
     { num: 16, title: "DISTRITO DEL APAGON", theme: "apagon", tag: "SOMBRAS · 320 TILES", bossType: "omega_sentinel", bossName: "CENTINELA OMEGA", difficulty: 7, worldW: 320, enemyTypes: ["turret", "drone", "teleporter", "mimic"], mechanic: "oscuridad" },
     { num: 17, title: "HANGAR ORBITAL", theme: "orbital", tag: "GRAVEDAD · 330 TILES", bossType: "xeno_carrier", bossName: "PORTANAVES XENO", difficulty: 8, worldW: 330, enemyTypes: ["xeno_scout", "drone", "tractor_unit", "sniper", "bombardier"], mechanic: "gravedad" },
     { num: 18, title: "CIUDAD FLOTANTE", theme: "flotante", tag: "ASCENSO VERTICAL · 136 PISOS", bossType: "tri_oracle", bossName: "ORACULO TRICEFALO", difficulty: 8, vertical: "ascend", enemyTypes: ["xeno_scout", "radstar", "tractor_unit", "firebat"], mechanic: "viento" },
@@ -190,17 +190,19 @@
   const LEVEL_DESIGNS = {
     1: { layoutFamily: "muelles-ramificados", visualProfile: "puerto-pesquero-incendiado", arenaPattern: "dique-partido", route: ["docks", "steps", "arches", "towers"], setPieces: ["barco varado", "grua en llamas", "lonja derrumbada", "faro del dique"], encounterPlan: ["pirañas bajo pasarelas", "tiburones entre coberturas", "emboscada en el faro"] },
     2: { layoutFamily: "tuneles-superpuestos", visualProfile: "alcantarilla-abisal-bioluminiscente", arenaPattern: "cisterna-circular", route: ["tunnels", "basin", "zigzag", "chambers"], setPieces: ["colector roto", "compuertas gemelas", "nido de minas", "gran cisterna"], encounterPlan: ["anguilas en conductos", "minas con corriente", "pulpos desde respiraderos"] },
-    3: { layoutFamily: "tejados-y-canales", visualProfile: "barrio-costero-sumergido", arenaPattern: "plaza-inundada", route: ["islands", "towers", "docks", "canopy"], setPieces: ["mercado anegado", "campanario inclinado", "azoteas conectadas", "plaza de la sirena"], encounterPlan: ["cruce sobre balsas", "francotiradores en azoteas", "asedio desde canales"] },
+    3: { layoutFamily: "tejados-y-canales", visualProfile: "barrio-costero-sumergido", arenaPattern: "patio-de-doble-salto", tutorialAdvantage: "balcones altos y rutas de flanco", bossSpawnOffset: -3, route: ["islands", "towers", "docks", "canopy"], setPieces: ["mercado anegado", "campanario inclinado", "azoteas conectadas", "patio del scout"], encounterPlan: ["cruce sobre balsas", "francotiradores en azoteas", "asedio desde canales"] },
     4: { layoutFamily: "persecucion-lineal", visualProfile: "viaducto-volcanico", arenaPattern: "caldera-con-puentes", route: ["rails", "arches", "zigzag", "steps"], setPieces: ["acueducto de lava", "torres de enfriamiento", "puente quebrado", "boca del volcan"], encounterPlan: ["murcielagos sobre magma", "anguilas en el viaducto", "cangrejos de bloqueo"] },
-    6: { layoutFamily: "trincheras-escalonadas", visualProfile: "arsenal-militar-abandonado", arenaPattern: "bunker-cruzado", route: ["trenches", "chambers", "towers", "rails"], setPieces: ["campo de alambradas", "deposito de municion", "bunker alfa", "hangar del tanque"], encounterPlan: ["torretas con cobertura", "minas entre trincheras", "escuadra de escudos"] },
+    5: { layoutFamily: "fortaleza-de-mareas", visualProfile: "castillo-litoral-batido-por-olas", arenaPattern: "salon-de-la-corona", route: ["towers", "docks", "arches", "basin"], setPieces: ["muralla costera", "puerta inundada", "galeria de mareas", "salon del rey"], encounterPlan: ["tiburones entre almenas", "piranhas en canales", "asalto de la corona"] },
+    6: { layoutFamily: "trincheras-escalonadas", visualProfile: "arsenal-militar-abandonado", arenaPattern: "patio-de-escalada", tutorialAdvantage: "torres escalables y fuego cruzado", bossSpawnOffset: -7, route: ["trenches", "chambers", "towers", "rails"], setPieces: ["campo de alambradas", "deposito de municion", "bunker alfa", "patio del escalador"], encounterPlan: ["torretas con cobertura", "minas entre trincheras", "escuadra de escudos"] },
     7: { layoutFamily: "andenes-paralelos", visualProfile: "metro-oxidado-fantasma", arenaPattern: "terminal-de-vias", route: ["rails", "tunnels", "islands", "trenches"], setPieces: ["anden clausurado", "tren descarrilado", "tunel de servicio", "terminal ferrica"], encounterPlan: ["drones sobre vagones", "minas entre rieles", "francotiradores de anden"] },
     8: { layoutFamily: "gruas-verticales", visualProfile: "astillero-bajo-tormenta", arenaPattern: "dique-seco", route: ["towers", "docks", "canopy", "arches"], setPieces: ["cascos a medio montar", "grua de contenedores", "muelle de carga", "dique del almirante"], encounterPlan: ["pulpos entre contenedores", "drones alrededor de gruas", "torretas del dique"] },
-    9: { layoutFamily: "asedio-en-anillos", visualProfile: "fortaleza-de-ceniza", arenaPattern: "patio-del-bastion", route: ["trenches", "steps", "arches", "chambers"], setPieces: ["campamento sitiador", "muralla exterior", "torre de ceniza", "patio del bastion"], encounterPlan: ["escudos en la brecha", "torretas de muralla", "murcielagos sobre almenas"] },
+    9: { layoutFamily: "asedio-en-anillos", visualProfile: "fortaleza-de-ceniza", arenaPattern: "hospital-de-bastion", tutorialAdvantage: "biombos de cobertura y zonas de curacion", bossSpawnOffset: -6, route: ["trenches", "steps", "arches", "chambers"], setPieces: ["campamento sitiador", "muralla exterior", "torre de ceniza", "hospital de campaña"], encounterPlan: ["escudos en la brecha", "torretas de muralla", "murcielagos sobre almenas"] },
     10: { layoutFamily: "arenas-encadenadas", visualProfile: "coliseo-imperial-de-magma", arenaPattern: "foso-con-gradas", route: ["arches", "basin", "steps", "islands"], setPieces: ["puerta de gladiadores", "foso de bestias", "galeria imperial", "arena del emperador"], encounterPlan: ["oleada de cangrejos", "minas en el foso", "anguilas desde las gradas"] },
     11: { layoutFamily: "islas-pantanosas", visualProfile: "humedal-toxico-organico", arenaPattern: "nido-de-raices", route: ["islands", "canopy", "basin", "zigzag"], setPieces: ["aldea hundida", "arbol de esporas", "laguna mutagena", "nido de la hidra"], encounterPlan: ["slimes desde el lodo", "esporas en el dosel", "mutantes en la laguna"] },
-    12: { layoutFamily: "cadena-industrial", visualProfile: "planta-de-residuos-gamma", arenaPattern: "prensa-central", route: ["rails", "chambers", "trenches", "towers"], setPieces: ["cintas trituradoras", "silos toxicos", "prensas alternas", "pozo de excavacion"], encounterPlan: ["minas en cintas", "drones entre silos", "escudos bajo prensas"] },
+    12: { layoutFamily: "cadena-industrial", visualProfile: "planta-de-residuos-gamma", arenaPattern: "patio-de-conduccion", tutorialAdvantage: "pilones conductores y corredores estrechos", bossSpawnOffset: -6, route: ["rails", "chambers", "trenches", "towers"], setPieces: ["cintas trituradoras", "silos toxicos", "prensas alternas", "patio de conduccion"], encounterPlan: ["minas en cintas", "drones entre silos", "escudos bajo prensas"] },
     13: { layoutFamily: "salas-plegadas", visualProfile: "laboratorio-cuantico-fracturado", arenaPattern: "camara-de-portales", route: ["chambers", "zigzag", "tunnels", "islands"], setPieces: ["sala de contencion", "vivero mutante", "corredor imposible", "camara de isotopos"], encounterPlan: ["mutantes liberados", "teletransportadores cruzados", "esporas de contencion"] },
     14: { layoutFamily: "convoy-en-marcha", visualProfile: "tren-blindado-nuclear", arenaPattern: "locomotora-abierta", route: ["rails", "steps", "canopy", "trenches"], setPieces: ["vagones cisterna", "coche artillado", "techo del convoy", "locomotora atomica"], encounterPlan: ["drones entre vagones", "francotiradores en techos", "minas de acoplamiento"] },
+    15: { layoutFamily: "reactor-en-capas", visualProfile: "reactor-radiactivo-industrial", arenaPattern: "santuario-de-balizas", tutorialAdvantage: "tres plataformas de reaparicion y fuego cruzado", bossSpawnOffset: -4, route: ["chambers", "rails", "basin", "towers"], setPieces: ["camara de residuos", "conductos calientes", "pozo de radiacion", "santuario de balizas"], encounterPlan: ["estrellas radioactivas", "escudos en pasarelas", "carrera hacia el reactor"] },
     16: { layoutFamily: "calles-en-penumbra", visualProfile: "distrito-electrico-apagado", arenaPattern: "subestacion-omega", route: ["towers", "tunnels", "docks", "chambers"], setPieces: ["avenida sin luz", "edificios puente", "central de respaldo", "subestacion omega"], encounterPlan: ["mimicos en escaparates", "drones de patrulla", "teletransportes en sombras"] },
     17: { layoutFamily: "hangar-gravedad-variable", visualProfile: "hangar-orbital-xeno", arenaPattern: "bahia-de-lanzamiento", route: ["islands", "rails", "towers", "zigzag"], setPieces: ["esclusa exterior", "anillos de gravedad", "cubierta de cazas", "bahia del portanaves"], encounterPlan: ["exploradores en gravedad baja", "tractores sobre pasarelas", "francotiradores orbitales"] },
     18: { layoutFamily: "archipielago-aereo", visualProfile: "ciudad-flotante-alienigena", arenaPattern: "templo-de-tres-islas", route: ["islands", "canopy", "arches", "towers"], setPieces: ["jardines suspendidos", "molinos de viento", "puentes de nubes", "templo del oraculo"], encounterPlan: ["exploradores entre islas", "tractores contra el viento", "murcielagos sobre puentes"] },
@@ -288,6 +290,15 @@
       tiles[y][cx + 3] = T.CASTLE;
       tiles[y][cx + 8] = T.CASTLE;
       tiles[y][cx + 9] = T.CASTLE;
+    }
+    // Sala del trono del Rey Marino: coberturas bajas y almenas escalonadas
+    // visibles (no colisiones fantasma) que le dan ángulos de carga y de
+    // ráfaga sin cerrar la ruta del Clásico hacia la puerta.
+    for (let x = 202; x <= 208; x++) put(tiles, x, GROUND_Y - 3, T.BRIDGE);
+    for (let x = 214; x <= 219; x++) put(tiles, x, GROUND_Y - 5, T.PLATFORM);
+    for (let x = 222; x <= 226; x++) put(tiles, x, GROUND_Y - 3, T.BRIDGE);
+    for (const x of [210, 220]) {
+      for (let h = 1; h <= 2; h++) put(tiles, x, GROUND_Y - h, T.CASTLE);
     }
     tiles[GROUND_Y - 1][cx + 5] = T.DOOR;
     tiles[GROUND_Y - 1][cx + 6] = T.DOOR;
@@ -445,6 +456,16 @@
     tiles[GROUND_Y - 2][cx + 2] = T.DOOR;
     tiles[GROUND_Y - 2][cx + 3] = T.DOOR;
 
+    // El reactor original conserva sus fosos y pasarelas, pero recibe tres
+    // pedestales visibles para el tutorial de la Baliza de Retorno.
+    for (const [x, y, w] of [[234, GROUND_Y - 4, 5], [243, GROUND_Y - 6, 5], [252, GROUND_Y - 4, 5]]) {
+      for (let i = 0; i < w; i++) put(tiles, x + i, y, T.BRIDGE);
+    }
+    for (const x of [240, 249]) {
+      put(tiles, x, GROUND_Y - 1, T.CRATE);
+      put(tiles, x + 1, GROUND_Y - 1, T.CRATE);
+    }
+
     return {
       tiles,
       tileMeta,
@@ -458,7 +479,7 @@
       levelNum: 15,
       name: "NIVEL 15: REACTOR RADIACTIVO",
       campaign: campaignLevel(15),
-      bossSpawn: { ...SPAWNS_L2.boss, type: "radboss", triggerX: 232 },
+      bossSpawn: { ...SPAWNS_L2.boss, type: "cerberus", tileY: GROUND_Y - 4, triggerX: 232 },
       checkpoints: [58, 116, 174, 220],
     };
   }
@@ -737,34 +758,94 @@
     // Cada arena utiliza estructuras físicas claras y bajas; las formas
     // cambian la ruta de esquiva sin bloquear la puerta ni crear colisiones
     // que no correspondan a un tile dibujado.
-    if (["hammer_shark", "seaking"].includes(boss)) {
-      ledge(arenaStart + 5, gy - 3, 5, T.BRIDGE); ledge(arenaStart + 20, gy - 4, 5, T.BRIDGE);
+    if (boss === "hammer_shark") {
+      ledge(arenaStart + 4, gy - 2, 8, T.BRIDGE); ledge(arenaStart + 22, gy - 5, 7, T.BRIDGE);
+      block(arenaStart + 15, 1, T.CRATE, 3);
+      ledge(arenaStart + 31, gy - 2, 6, T.BRIDGE); block(arenaStart + 35, 1, T.CRATE, 2);
+    } else if (boss === "agile_scout") {
+      // Arena de tutorial: tres balcones separados enseñan el doble salto y
+      // dan al Scout rutas de flanqueo que el jugador no puede bloquear.
+      ledge(arenaStart + 3, gy - 3, 5, T.BRIDGE); ledge(arenaStart + 12, gy - 6, 5, T.PLATFORM);
+      ledge(arenaStart + 23, gy - 3, 5, T.BRIDGE); block(arenaStart + 17, 2, T.CASTLE, 2);
     } else if (boss === "sewer_kraken") {
-      block(arenaStart + 6, 2, T.PIPE, 2); block(arenaStart + 24, 2, T.PIPE, 2); ledge(arenaStart + 14, gy - 4, 5);
+      block(arenaStart + 5, 3, T.PIPE, 2); block(arenaStart + 25, 3, T.PIPE, 2);
+      ledge(arenaStart + 13, gy - 5, 8, T.PLATFORM); ledge(arenaStart + 10, gy - 2, 4, T.BRIDGE);
+      ledge(arenaStart + 29, gy - 3, 7, T.BRIDGE); block(arenaStart + 34, 2, T.PIPE, 2);
     } else if (boss === "siren_warlord") {
-      ledge(arenaStart + 4, gy - 4, 6); ledge(arenaStart + 22, gy - 4, 6); block(arenaStart + 15, 1, T.CRATE, 2);
-    } else if (["magma_eel_lord", "magma_emperor"].includes(boss)) {
-      ledge(arenaStart + 5, gy - 3, 5); ledge(arenaStart + 21, gy - 5, 6); block(arenaStart + 15, 1, T.CRATE, 2);
+      ledge(arenaStart + 3, gy - 5, 5); ledge(arenaStart + 12, gy - 2, 4, T.BRIDGE);
+      ledge(arenaStart + 23, gy - 5, 6); block(arenaStart + 17, 2, T.CRATE, 2);
+    } else if (boss === "magma_eel_lord") {
+      ledge(arenaStart + 4, gy - 3, 4); ledge(arenaStart + 11, gy - 6, 4); ledge(arenaStart + 22, gy - 2, 7);
+      block(arenaStart + 17, 1, T.CRATE, 2);
+      ledge(arenaStart + 30, gy - 5, 6, T.BRIDGE); block(arenaStart + 34, 1, T.CRATE, 2);
+    } else if (boss === "seaking") {
+      // El Rey Marino recibe una sala de trono acuática, con dos niveles de
+      // cobertura para que sus ráfagas tengan posición dominante.
+      block(arenaStart + 4, 3, T.CASTLE, 3); block(arenaStart + 24, 3, T.CASTLE, 3);
+      ledge(arenaStart + 11, gy - 5, 9, T.BRIDGE); ledge(arenaStart + 15, gy - 2, 6, T.PLATFORM);
+      ledge(arenaStart + 31, gy - 4, 6, T.BRIDGE); block(arenaStart + 35, 2, T.CASTLE, 2);
+    } else if (boss === "heavy_climber") {
+      // El muro central es deliberadamente escalable: el boss pesado no
+      // salta, pero puede cambiar de nivel y cerrar la ruta desde arriba.
+      block(arenaStart + 5, 4, T.BRICK, 3); block(arenaStart + 24, 4, T.BRICK, 3);
+      ledge(arenaStart + 8, gy - 5, 8, T.BRIDGE); ledge(arenaStart + 19, gy - 7, 7, T.PLATFORM);
+      block(arenaStart + 16, 2, T.CRATE, 2);
     } else if (boss === "crab_tank") {
-      block(arenaStart + 5, 2, T.BRICK, 3); block(arenaStart + 23, 2, T.BRICK, 3); ledge(arenaStart + 14, gy - 4, 5, T.BRIDGE);
-    } else if (boss === "ferro_worm" || boss === "atomic_locomotive") {
-      ledge(arenaStart + 3, gy - 6, 9, T.BRIDGE); ledge(arenaStart + 19, gy - 6, 9, T.BRIDGE); block(arenaStart + 14, 1, T.CRATE, 2);
+      block(arenaStart + 4, 3, T.BRICK, 4); block(arenaStart + 24, 3, T.BRICK, 4);
+      ledge(arenaStart + 13, gy - 6, 9, T.BRIDGE); block(arenaStart + 18, 1, T.CRATE, 2);
+    } else if (boss === "ferro_worm") {
+      ledge(arenaStart + 3, gy - 7, 7, T.BRIDGE); ledge(arenaStart + 22, gy - 4, 8, T.BRIDGE);
+      block(arenaStart + 13, 2, T.CRATE, 3); ledge(arenaStart + 16, gy - 9, 4, T.PLATFORM);
+      ledge(arenaStart + 31, gy - 2, 6, T.BRIDGE); block(arenaStart + 6, 1, T.PIPE, 2);
     } else if (boss === "admiral_octopus") {
-      ledge(arenaStart + 4, gy - 3, 6, T.BRIDGE); ledge(arenaStart + 21, gy - 3, 6, T.BRIDGE); block(arenaStart + 15, 2, T.CRATE, 2);
+      ledge(arenaStart + 3, gy - 3, 7, T.BRIDGE); ledge(arenaStart + 13, gy - 7, 8, T.PLATFORM);
+      ledge(arenaStart + 24, gy - 3, 6, T.BRIDGE); block(arenaStart + 18, 2, T.CRATE, 2);
+      ledge(arenaStart + 29, gy - 6, 7, T.BRIDGE); block(arenaStart + 8, 2, T.PIPE, 2);
     } else if (boss === "ash_golem") {
-      block(arenaStart + 6, 3, T.CASTLE, 2); block(arenaStart + 23, 3, T.CASTLE, 2); ledge(arenaStart + 14, gy - 5, 5);
+      block(arenaStart + 4, 4, T.CASTLE, 3); block(arenaStart + 25, 4, T.CASTLE, 3);
+      ledge(arenaStart + 14, gy - 6, 7, T.PLATFORM); block(arenaStart + 18, 1, T.BRICK, 2);
+    } else if (boss === "field_medic") {
+      // La enfermería elevada favorece al boss: sus piscinas de curación y
+      // drones dominan el centro mientras el jugador rodea los biombos.
+      block(arenaStart + 4, 2, T.BLOCK, 3); block(arenaStart + 25, 2, T.BLOCK, 3);
+      ledge(arenaStart + 9, gy - 5, 6, T.PLATFORM); ledge(arenaStart + 20, gy - 6, 7, T.PLATFORM);
+      block(arenaStart + 16, 3, T.PIPE, 2);
+    } else if (boss === "magma_emperor") {
+      ledge(arenaStart + 4, gy - 3, 5); ledge(arenaStart + 21, gy - 5, 7); block(arenaStart + 14, 2, T.CRATE, 3);
+      ledge(arenaStart + 30, gy - 2, 6, T.BRIDGE); block(arenaStart + 8, 1, T.CRATE, 2);
     } else if (boss === "spore_hydra") {
-      block(arenaStart + 6, 2, T.GRASS, 2); block(arenaStart + 24, 2, T.GRASS, 2); ledge(arenaStart + 14, gy - 4, 5);
+      block(arenaStart + 4, 3, T.GRASS, 3); block(arenaStart + 25, 3, T.GRASS, 3);
+      ledge(arenaStart + 14, gy - 5, 7); ledge(arenaStart + 18, gy - 2, 4, T.BRIDGE);
+      block(arenaStart + 32, 2, T.GRASS, 3); ledge(arenaStart + 8, gy - 4, 5, T.BRIDGE);
     } else if (boss === "gamma_excavator") {
-      block(arenaStart + 5, 2, T.BRICK, 3); block(arenaStart + 23, 2, T.BRICK, 3); ledge(arenaStart + 15, gy - 5, 4, T.BRIDGE);
+      block(arenaStart + 5, 3, T.BRICK, 4); block(arenaStart + 24, 3, T.BRICK, 4);
+      ledge(arenaStart + 14, gy - 6, 6, T.BRIDGE); block(arenaStart + 18, 1, T.CRATE, 2);
+    } else if (boss === "field_technician") {
+      // Pilones sólidos y plataformas estrechas forman un circuito donde la
+      // Tesla y el EMP del boss controlan las rutas, no sólo una pared plana.
+      block(arenaStart + 5, 4, T.PIPE, 2); block(arenaStart + 26, 4, T.PIPE, 2);
+      ledge(arenaStart + 9, gy - 3, 5, T.BRIDGE); ledge(arenaStart + 20, gy - 6, 7, T.PLATFORM);
+      block(arenaStart + 16, 2, T.CRATE, 2);
     } else if (boss === "isotope_doctor") {
-      block(arenaStart + 6, 2, T.PIPE, 2); block(arenaStart + 24, 2, T.PIPE, 2); ledge(arenaStart + 14, gy - 4, 5);
+      block(arenaStart + 5, 3, T.PIPE, 2); block(arenaStart + 25, 3, T.PIPE, 2); ledge(arenaStart + 13, gy - 5, 8);
+      block(arenaStart + 32, 4, T.PIPE, 2); ledge(arenaStart + 19, gy - 2, 6, T.BRIDGE);
+    } else if (boss === "atomic_locomotive") {
+      ledge(arenaStart + 3, gy - 7, 9, T.BRIDGE); ledge(arenaStart + 21, gy - 7, 9, T.BRIDGE); block(arenaStart + 15, 2, T.CRATE, 2);
+      ledge(arenaStart + 31, gy - 3, 6, T.BRIDGE); block(arenaStart + 10, 2, T.BRICK, 2);
     } else if (boss === "omega_sentinel") {
-      block(arenaStart + 5, 2, T.CASTLE, 2); block(arenaStart + 24, 2, T.CASTLE, 2); ledge(arenaStart + 15, gy - 4, 4);
+      block(arenaStart + 4, 3, T.CASTLE, 3); block(arenaStart + 25, 3, T.CASTLE, 3); ledge(arenaStart + 14, gy - 6, 8);
+      block(arenaStart + 32, 4, T.CASTLE, 2); ledge(arenaStart + 7, gy - 3, 6, T.BRIDGE);
+    } else if (boss === "cerberus") {
+      // Tres plataformas-baliza separan los ciclos de resurrección y dan al
+      // Cerbero ángulos de fuego y Razor distintos en cada vida.
+      ledge(arenaStart + 3, gy - 4, 7, T.BRIDGE); ledge(arenaStart + 13, gy - 7, 6, T.PLATFORM);
+      ledge(arenaStart + 23, gy - 4, 7, T.BRIDGE); block(arenaStart + 18, 2, T.CRATE, 2);
     } else if (boss === "xeno_carrier") {
-      ledge(arenaStart + 3, gy - 5, 8); ledge(arenaStart + 20, gy - 5, 8); block(arenaStart + 14, 1, T.CRATE, 2);
+      ledge(arenaStart + 3, gy - 6, 8); ledge(arenaStart + 20, gy - 6, 8); block(arenaStart + 14, 1, T.CRATE, 2);
+      ledge(arenaStart + 30, gy - 9, 7, T.BRIDGE); block(arenaStart + 36, 2, T.PIPE, 2);
     } else if (boss === "tri_oracle") {
       ledge(arenaStart + 4, gy - 4, 5); ledge(arenaStart + 15, gy - 6, 5); ledge(arenaStart + 25, gy - 4, 4);
+      ledge(arenaStart + 31, gy - 7, 6, T.BRIDGE); block(arenaStart + 8, 2, T.CASTLE, 2);
     } else if (boss === "cataclysm_architect") {
       block(arenaStart + 6, 2, T.CASTLE, 2); block(arenaStart + 23, 2, T.CASTLE, 2); ledge(arenaStart + 14, gy - 5, 5);
     }
@@ -827,6 +908,13 @@
     ledge(16, 27, 10, T.PLATFORM, "TEMPLO DE TRES ISLAS");
     ledge(28, 31, 10, T.BRIDGE, "JARDIN DEL ORACULO");
     ledge(16, 22, 10, T.PLATFORM);
+    // Balcones de lectura del Oráculo: el boss puede cruzar entre islas y
+    // disparar sus ecos desde tres alturas, pero todos los apoyos siguen
+    // siendo tiles visibles y alcanzables por el Clásico.
+    ledge(5, 26, 6, T.BRIDGE, "BALCON DEL ECO");
+    ledge(31, 26, 6, T.BRIDGE, "BALCON DEL ECO");
+    ledge(11, 23, 4, T.PLATFORM);
+    ledge(27, 23, 4, T.PLATFORM);
     for (let x = 14; x <= 27; x++) tiles[34][x] = T.BRIDGE;
 
     for (let y = 10; y <= 16; y++) {
@@ -991,7 +1079,9 @@
     }
 
     const checkpoints = [0.24, 0.48, 0.70, 0.86].map((ratio) => Math.floor((arenaStart - 8) * ratio));
-    const bossTileY = ["xeno_carrier", "tri_oracle", "cataclysm_architect"].includes(cfg.bossType) ? gy - 4 : gy;
+    const bossTileY = design && design.bossSpawnOffset !== undefined
+      ? gy + design.bossSpawnOffset
+      : (["xeno_carrier", "tri_oracle", "cataclysm_architect"].includes(cfg.bossType) ? gy - 4 : gy);
     const generatedBoss = { tileX: W - 25, tileY: bossTileY, type: cfg.bossType, label: "BOSS", triggerX: arenaStart };
     return {
       tiles,

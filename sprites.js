@@ -794,6 +794,14 @@ kwwwwww9ffffccccccccccccccccffff9wwwwwwk
           }
         });
       };
+      sheet.onerror = function () {
+        // No dejes un atlas pendiente para siempre: la pantalla de selección
+        // tiene un retrato por clase y puede continuar tras el límite de carga.
+        frames.failed = true;
+        targets.forEach((target) => {
+          target.failed = true;
+        });
+      };
       sheet.src = path;
       return frames;
     }
@@ -857,6 +865,24 @@ kwwwwww9ffffccccccccccccccccffff9wwwwwwk
       technician: { idle: newHeroMovementArt.technician_idle, run1: newHeroMovementArt.technician_run1, run2: newHeroMovementArt.technician_run2, runFrames: [newHeroMovementArt.technician_run1, newHeroMovementArt.technician_run2], jump: newHeroActionArt.technician_jump, crouch: newHeroActionArt.technician_crouch, dash: newHeroActionArt.technician_dash, select: newHeroMovementArt.technician_idle, fire: newHeroMovementArt.technician_idle },
       phantom: { idle: newHeroMovementArt.phantom_idle, run1: newHeroMovementArt.phantom_run1, run2: newHeroMovementArt.phantom_run2, runFrames: [newHeroMovementArt.phantom_run1, newHeroMovementArt.phantom_run2], jump: newHeroActionArt.phantom_jump, crouch: newHeroActionArt.phantom_crouch, dash: newHeroActionArt.phantom_dash, select: newHeroMovementArt.phantom_idle, fire: newHeroMovementArt.phantom_idle },
     };
+    // Cada jefe tutorial es el rival de la clase que se desbloquea. Se
+    // conecta al objeto de héroe, no a una copia de sus celdas del atlas:
+    // así comparte la misma carga, poses y silueta que verá el jugador al
+    // obtener esa clase. La escala y la IA siguen siendo propias del boss.
+    const tutorialBossHeroes = {
+      agile_scout: heroes.agile,
+      heavy_climber: heroes.heavy,
+      field_medic: heroes.medic,
+      field_technician: heroes.technician,
+      cerberus: heroes.phantom,
+    };
+    for (const [bossType, hero] of Object.entries(tutorialBossHeroes)) {
+      campaignSprites[bossType] = {
+        idle: hero.idle,
+        walk: hero.run1 || hero.idle,
+        shoot: hero.fire || hero.dash || hero.idle,
+      };
+    }
     Object.assign(seaking, { idle: seakingArt.idle, walk: seakingArt.walk, shoot: seakingArt.shoot, attack: seakingArt.attack });
     Object.assign(guns, weaponArt);
     return Object.assign({ player, heroes, shark, octopus, eel, crab, seaking, radstar, radboss, alien_ship, guns, scenery, gel: gelArt, scale: S }, campaignSprites);

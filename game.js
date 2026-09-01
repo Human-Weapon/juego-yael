@@ -3,6 +3,21 @@
 
   const L = window.YAEL_LEVEL;
   const SPR = window.YAEL_SPRITES.get();
+  const CHARACTER_LOADING = window.YAEL_CHARACTER_LOADING || {
+    createGate(timeoutFrames) {
+      return { frames: 0, timeoutFrames: Math.max(1, Math.round(timeoutFrames || 180)), opened: false, timedOut: false };
+    },
+    advanceGate(gate, ready) {
+      if (!gate || gate.opened) return true;
+      gate.frames++;
+      if (ready || gate.frames >= gate.timeoutFrames) {
+        gate.opened = true;
+        gate.timedOut = !ready;
+      }
+      return gate.opened;
+    },
+  };
+  const HOOK_PHYSICS = window.YAEL_HOOK_PHYSICS;
   const { TILE, PHYS, T, solid, oneWay } = L;
 
   const canvas = document.getElementById("game");
@@ -13,6 +28,7 @@
   const CAMPAIGN = L.CAMPAIGN_LEVELS || [];
   const PROJECT_TITLE = "PROTOCOL OMEGA";
   const OFFICIAL_REPOSITORY = "https://github.com/Human-Weapon/protocol-omega";
+  const CHARACTER_LOADING_TIMEOUT = 180;
 
   const WEAPONS = [
     {
@@ -95,7 +111,19 @@
     { id: "heavy", name: "PESADO", title: "ESCALADOR PESADO", maxHp: 16, run: 0.72, acc: 0.78, airAcc: 0.55, jump: 0, holdGravity: 0.4, gravity: 0.45, maxFall: 10, reloadMultiplier: 1, ammoMultiplier: 2, dashSpeed: 19, dashFrames: 26, dashInv: 30, dashCooldown: 150, dashDamage: 42, dashKnockback: 9, climb: true, climbSpeed: 3.1, color: "#ff9f1c", description: "16 corazones · munición doble · escala" },
     { id: "medic", name: "MÉDICA", title: "MÉDICA DE CAMPAÑA", maxHp: 6, run: 0.92, acc: 0.95, airAcc: 1, jump: -11.4, holdGravity: 0.34, gravity: 0.4, maxFall: 10.8, reloadMultiplier: 1.12, ammoMultiplier: 0.9, damageMultiplier: 0.82, specialCooldownMultiplier: 1.22, regenFrames: 180, dashSpeed: 12, dashFrames: 8, dashInv: 30, dashCooldown: 48, climb: false, color: "#72f1b8", description: "6 corazones · regenera 1 vida cada 3s" },
     { id: "technician", name: "TÉCNICA", title: "TÉCNICA DE CAMPO", maxHp: 4, run: 0.88, acc: 0.9, airAcc: 0.88, jump: -13.2, holdGravity: 0.38, gravity: 0.46, maxFall: 11.5, reloadMultiplier: 1.18, ammoMultiplier: 0.68, specialCooldownMultiplier: 0.55, dashSpeed: 13, dashFrames: 8, dashInv: 30, dashCooldown: 54, climb: false, color: "#c77dff", description: "4 corazones · especiales 45% más rápidos" },
-    { id: "phantom", name: "FANTASMA", title: "FANTASMA DE FASE", maxHp: 4, run: 1.3, acc: 1.5, airAcc: 1.7, jump: -15.2, holdGravity: 0.58, gravity: 0.62, maxFall: 16, reloadMultiplier: 1.35, ammoMultiplier: 0.85, damageMultiplier: 0.8, dashSpeed: 18, dashFrames: 10, dashInv: 34, dashCooldown: 28, airJumps: 2, climb: false, color: "#f72585", description: "4 corazones · triple salto · recarga lenta" },
+    { id: "phantom", name: "FANTASMA", title: "FANTASMA DE FASE", maxHp: 4, run: 1.3, acc: 1.5, airAcc: 1.7, jump: -15.2, holdGravity: 0.58, gravity: 0.62, maxFall: 16, reloadMultiplier: 1.35, ammoMultiplier: 0.85, damageMultiplier: 0.8, dashSpeed: 18, dashFrames: 10, dashInv: 34, dashCooldown: 28, airJumps: 2, climb: false, color: "#f72585", description: "4 corazones · triple salto · dos armas de fuego" },
+  ];
+
+  // Cada dos niveles se presenta una clase enemiga como tutorial de su
+  // equipamiento. El boss usa estas mismas armas/especiales; al derrotarlo
+  // se incorporan al arsenal del jugador. El Clásico es la única clase
+  // disponible desde el inicio.
+  const CHARACTER_UNLOCKS = [
+    { level: 3, character: "agile", weapons: [1, 2], specials: [1, 3] },
+    { level: 6, character: "heavy", weapons: [3, 5], specials: [2, 4] },
+    { level: 9, character: "medic", weapons: [4, 7], specials: [5, 6] },
+    { level: 12, character: "technician", weapons: [8, 10], specials: [7, 8] },
+    { level: 15, character: "phantom", weapons: [6, 9], specials: [9] },
   ];
 
   const keys = Object.create(null);
@@ -153,6 +181,7 @@
   let unlockedSpecials = [0];
   let equippedWeapons = [0];
   let equippedSpecials = [0];
+  let unlockedCharacters = ["classic"];
   let claimedBossRewards = [];
   let pendingReward = null;
   let loadoutTargetLevel = 1;
@@ -161,6 +190,7 @@
   let selectedCharacter = 0;
   let characterCursor = 0;
   let characterTargetLevel = 1;
+  let characterLoadingGate = CHARACTER_LOADING.createGate(CHARACTER_LOADING_TIMEOUT);
 
   function loadCampaignProgress() {
     try {
@@ -176,6 +206,10 @@
         : fallback.slice();
       unlockedWeapons = validList(arsenal.unlockedWeapons, WEAPONS.length, [0]);
       unlockedSpecials = validList(arsenal.unlockedSpecials, SPECIALS.length, [0]);
+      unlockedCharacters = Array.isArray(arsenal.unlockedCharacters)
+        ? [...new Set(arsenal.unlockedCharacters.filter((id) => CHARACTERS.some((c) => c.id === id)))]
+        : ["classic"];
+      if (!unlockedCharacters.includes("classic")) unlockedCharacters.unshift("classic");
       if (!unlockedWeapons.includes(0)) unlockedWeapons.unshift(0);
       if (!unlockedSpecials.includes(0)) unlockedSpecials.unshift(0);
       equippedWeapons = validList(arsenal.equippedWeapons, WEAPONS.length, [0]).filter((i) => unlockedWeapons.includes(i)).slice(0, 2);
@@ -191,14 +225,64 @@
     try {
       window.localStorage.setItem("yael_campaign_unlocked", String(highestUnlockedLevel));
       window.localStorage.setItem("yael_arsenal_v2", JSON.stringify({
-        unlockedWeapons, unlockedSpecials, equippedWeapons, equippedSpecials, claimedBossRewards, selectedCharacter,
+        unlockedWeapons, unlockedSpecials, equippedWeapons, equippedSpecials, unlockedCharacters, claimedBossRewards, selectedCharacter,
       }));
     } catch (err) {}
+  }
+
+  function characterById(id) {
+    return CHARACTERS.find((character) => character.id === id) || CHARACTERS[0];
+  }
+
+  function characterUnlockForLevel(levelNum) {
+    return CHARACTER_UNLOCKS.find((unlock) => unlock.level === levelNum) || null;
+  }
+
+  function characterUnlockLevel(id) {
+    const unlock = CHARACTER_UNLOCKS.find((entry) => entry.character === id);
+    return unlock ? unlock.level : 1;
+  }
+
+  function characterIsAvailable(id, levelNum) {
+    // El nivel 1 conserva la pantalla de prueba histórica: se pueden
+    // inspeccionar todas las poses, pero sus armas permanecen bloqueadas.
+    return levelNum === 1 || unlockedCharacters.includes(id);
+  }
+
+  function unlockCharacterLoadout(levelNum) {
+    const unlock = characterUnlockForLevel(levelNum);
+    if (!unlock) return null;
+    if (!unlockedCharacters.includes(unlock.character)) unlockedCharacters.push(unlock.character);
+    for (const index of unlock.weapons || []) if (!unlockedWeapons.includes(index)) unlockedWeapons.push(index);
+    for (const index of unlock.specials || []) if (!unlockedSpecials.includes(index)) unlockedSpecials.push(index);
+    const character = characterById(unlock.character);
+    pendingReward = {
+      kind: "character",
+      name: character.name + " · EQUIPO DE TUTORIAL",
+      character: unlock.character,
+      weapons: unlock.weapons || [],
+      specials: unlock.specials || [],
+    };
+    return pendingReward;
+  }
+
+  function equipCharacterLoadout(id) {
+    const unlock = CHARACTER_UNLOCKS.find((entry) => entry.character === id);
+    if (!unlock) return;
+    const weapons = (unlock.weapons || []).filter((index) => unlockedWeapons.includes(index));
+    const specials = (unlock.specials || []).filter((index) => unlockedSpecials.includes(index));
+    if (weapons.length) equippedWeapons = weapons.slice(0, 2);
+    if (specials.length) equippedSpecials = specials.slice(0, 2);
   }
 
   function awardBossUnlock(levelNum) {
     if (claimedBossRewards.includes(levelNum)) return null;
     claimedBossRewards.push(levelNum);
+    const classReward = unlockCharacterLoadout(levelNum);
+    if (classReward) {
+      saveCampaignProgress();
+      return classReward;
+    }
     const pool = [];
     for (let i = 1; i < WEAPONS.length; i++) if (!unlockedWeapons.includes(i)) pool.push({ kind: "weapon", index: i, name: WEAPONS[i].name });
     for (let i = 1; i < SPECIALS.length; i++) if (!unlockedSpecials.includes(i)) pool.push({ kind: "special", index: i, name: SPECIALS[i].name });
@@ -806,15 +890,33 @@
     floatText(player.x, player.y - 20, SPECIALS[player.special].short, SPECIALS[player.special].color);
   }
 
+  function characterSpritesReady() {
+    if (!SPR.heroes) return false;
+    return CHARACTERS.every((character) => {
+      const hero = SPR.heroes[character.id];
+      if (!hero) return false;
+      const frames = [hero.idle, hero.select, hero.jump, hero.crouch, hero.dash, hero.fire].concat(hero.runFrames || []);
+      return frames.every((frame) => frame && frame.ready !== false);
+    });
+  }
+
   function openCharacterSelect(levelNum) {
     characterTargetLevel = clamp(levelNum, 1, CAMPAIGN.length);
     characterCursor = selectedCharacter;
     mouse.left = mouse.right = false;
-    state = "character_select";
+    characterLoadingGate = CHARACTER_LOADING.createGate(CHARACTER_LOADING_TIMEOUT);
+    state = characterSpritesReady() ? "character_select" : "character_loading";
   }
 
   function confirmCharacterSelect() {
+    const active = CHARACTERS[characterCursor] || CHARACTERS[0];
+    if (!characterIsAvailable(active.id, characterTargetLevel)) {
+      sfx.alarm();
+      floatText(VIEW_W / 2, 500, "DERROTA EL NIVEL " + characterUnlockLevel(active.id) + " PARA DESBLOQUEARLO", "#ef233c");
+      return;
+    }
     selectedCharacter = characterCursor;
+    equipCharacterLoadout(active.id);
     saveCampaignProgress();
     openLoadout(characterTargetLevel);
   }
@@ -1174,6 +1276,39 @@
     return true;
   }
 
+  function releaseHook(hook) {
+    if (!hook) return;
+    if (hook.target) {
+      hook.target.grappled = false;
+      hook.target.grappleHook = null;
+    }
+    hook.target = null;
+    hook.life = 0;
+    if (player && player.hook === hook) player.hook = null;
+  }
+
+  function surfaceHookAnchor(g) {
+    const hit = tilesTouching({ x: g.x - g.r, y: g.y - g.r, w: g.r * 2, h: g.r * 2 })
+      .find((tile) => solid(tile.id) || oneWay(tile.id) || tile.id === T.DOOR);
+    if (!hit) return { x: g.x, y: g.y };
+    const left = hit.tx * TILE;
+    const right = left + TILE;
+    const top = hit.ty * TILE;
+    const bottom = top + TILE;
+    const moveX = g.x - (g.prevX === undefined ? g.x - g.vx : g.prevX);
+    const moveY = g.y - (g.prevY === undefined ? g.y - g.vy : g.prevY);
+    if (Math.abs(moveX) >= Math.abs(moveY)) {
+      return {
+        x: moveX >= 0 ? left - 2 : right + 2,
+        y: clamp(g.y, top + 3, bottom - 3),
+      };
+    }
+    return {
+      x: clamp(g.x, left + 3, right - 3),
+      y: moveY >= 0 ? top - 2 : bottom + 2,
+    };
+  }
+
   function useSpecial() {
     const s = SPECIALS[player.special];
     if (!s || player.specialCool > 0 || player.dead) return;
@@ -1253,14 +1388,16 @@
       sfx.special();
       return;
     }
+    if (s.hook && player.hook) releaseHook(player.hook);
     const speed = s.hook ? 13 : 8.2;
     const launch = weaponMuzzlePos(g, aim);
     gadgets.push({
-      type: s.id, x: launch.x, y: launch.y, vx: Math.cos(aim) * speed, vy: Math.sin(aim) * speed - (s.hook ? 0 : 1.8),
-      r: s.hook ? 6 : 9, life: s.hook ? 170 : (s.fuse || 360), fuse: s.fuse || 0,
+      type: s.id, x: launch.x, y: launch.y, prevX: launch.x, prevY: launch.y,
+      vx: Math.cos(aim) * speed, vy: Math.sin(aim) * speed - (s.hook ? 0 : 1.8),
+      r: s.hook ? 6 : 9, life: s.hook ? 720 : (s.fuse || 360), fuse: s.fuse || 0,
       gravity: s.gravity || 0, bounce: s.bounce || 0, dmg: playerDamage(s.dmg || 0), explode: s.explode || 0,
       sticky: !!s.sticky, hook: !!s.hook, gel: !!s.gel, puddleRadius: s.puddleRadius || 34, color: s.color, state: "flying", target: null,
-      hitTargets: [],
+      targetMode: null, anchorX: null, anchorY: null, ropeLength: 0, hitTargets: [],
     });
     player.hook = s.hook ? gadgets[gadgets.length - 1] : null;
     sfx.special();
@@ -1307,29 +1444,45 @@
         g.x = g.target.x + g.target.w / 2;
         g.y = g.target.y + g.target.h * 0.35;
       } else if (g.state === "hookedEnemy" && g.target && !g.target.dead) {
+        if (!mouse.right) {
+          releaseHook(g);
+          continue;
+        }
+        const result = HOOK_PHYSICS.stepEnemy(g, player, g.target, {
+          baseStrength: 0.82,
+          maxStrength: 3.25,
+          targetMaxSpeed: 13.5,
+          playerMaxSpeed: 20,
+        });
         g.x = g.target.x + g.target.w / 2;
         g.y = g.target.y + g.target.h / 2;
-        if (mouse.right) {
-          const def = ENEMY_TYPES[g.target.type];
-          if (def && def.boss) {
-            const a = angTo(player.x, player.y, g.x, g.y);
-            player.vx += Math.cos(a) * 0.72;
-            player.vy += Math.sin(a) * 0.55;
-          } else {
-            const a = angTo(g.x, g.y, player.x + player.w / 2, player.y + player.h / 2);
-            g.target.vx += Math.cos(a) * 0.9;
-            g.target.vy += Math.sin(a) * 0.65;
-            g.target.stunTimer = Math.max(g.target.stunTimer || 0, 4);
-          }
-        } else g.life = 0;
+        g.targetMode = result.mode;
+        g.life = Math.max(g.life, 2);
+        if (result.mode === "target") {
+          // Small targets are suspended by the cable while their own AI is
+          // paused. Their tangential velocity is preserved by stepEnemy, so
+          // they arc into the player rather than teleporting to its center.
+          g.target.grappled = true;
+          g.target.grappleHook = g;
+        }
       } else if (g.state === "hookedEnemy") {
-        g.life = 0;
+        releaseHook(g);
       } else if (g.state === "hookedTile") {
-        if (mouse.right) {
-          const a = angTo(player.x + player.w / 2, player.y + player.h / 2, g.x, g.y);
-          player.vx += Math.cos(a) * 0.78;
-          player.vy += Math.sin(a) * 0.62;
-        } else g.life = 0;
+        if (!mouse.right || !Number.isFinite(g.anchorX) || !Number.isFinite(g.anchorY)) {
+          releaseHook(g);
+          continue;
+        }
+        HOOK_PHYSICS.stepSurface(g, player, {
+          minLength: 58,
+          reelSpeed: 0.52,
+          spring: 0.075,
+          maxStrength: 3.2,
+          maxSpeed: 20,
+        });
+        // Static anchors do not follow the projectile after impact.
+        g.x = g.anchorX;
+        g.y = g.anchorY;
+        g.life = Math.max(g.life, 2);
       } else if (g.state === "puddle") {
         for (const en of enemies) {
           if (en.dead || ENEMY_TYPES[en.type]?.flying) continue;
@@ -1343,15 +1496,23 @@
           }
         }
       } else if (g.state === "flying") {
+        g.prevX = g.x;
+        g.prevY = g.y;
         g.vy += g.gravity;
         g.x += g.vx;
         g.y += g.vy;
         let enemyHit = null;
         for (const en of enemies) {
-          if (!en.dead && en.state !== "emerge" && g.x > en.x && g.x < en.x + en.w && g.y > en.y && g.y < en.y + en.h) { enemyHit = en; break; }
+          if (!en.dead && en.state !== "emerge" && bulletTouchesBox(g, en)) { enemyHit = en; break; }
         }
         if (enemyHit) {
-          if (g.hook) { g.state = "hookedEnemy"; g.target = enemyHit; g.vx = g.vy = 0; }
+          if (g.hook) {
+            g.state = "hookedEnemy";
+            g.target = enemyHit;
+            g.targetMode = HOOK_PHYSICS.classifyTarget(enemyHit, player);
+            g.ropeLength = Math.max(64, Math.min(900, dist(player.x + player.w / 2, player.y + player.h / 2, enemyHit.x + enemyHit.w / 2, enemyHit.y + enemyHit.h / 2)));
+            g.vx = g.vy = 0;
+          }
           else if (g.sticky) { g.state = "stuckEnemy"; g.target = enemyHit; g.vx = g.vy = 0; }
           else if (!g.gel) {
             const hitTargets = g.hitTargets || (g.hitTargets = []);
@@ -1367,9 +1528,18 @@
             }
           }
         }
-        const hitSurface = tilesTouching({ x: g.x - g.r, y: g.y - g.r, w: g.r * 2, h: g.r * 2 }).some((t) => solid(t.id) || oneWay(t.id) || t.id === T.DOOR);
+        const hitSurface = g.state === "flying" && tilesTouching({ x: g.x - g.r, y: g.y - g.r, w: g.r * 2, h: g.r * 2 }).some((t) => solid(t.id) || oneWay(t.id) || t.id === T.DOOR);
         if (hitSurface) {
-          if (g.hook) { g.state = "hookedTile"; g.vx = g.vy = 0; }
+          if (g.hook) {
+            const anchor = surfaceHookAnchor(g);
+            g.state = "hookedTile";
+            g.anchorX = anchor.x;
+            g.anchorY = anchor.y;
+            g.x = anchor.x;
+            g.y = anchor.y;
+            g.ropeLength = Math.max(72, Math.min(900, dist(player.x + player.w / 2, player.y + player.h / 2, anchor.x, anchor.y)));
+            g.vx = g.vy = 0;
+          }
           else if (g.sticky) { g.state = "stuckTile"; g.vx = g.vy = 0; }
           else if (g.gel) { g.state = "puddle"; g.y -= 8; g.vx = g.vy = 0; g.life = 420; }
           else { g.y -= g.vy; g.vy = -Math.abs(g.vy) * g.bounce; g.vx *= 0.72; }
@@ -1412,7 +1582,7 @@
     octopus: { name: "Gyojin Pulpo", hp: 28, w: 36, h: 30, speed: 0.95, dmg: 1, score: 250, spit: true },
     eel: { name: "Anguila Magma", hp: 20, w: 48, h: 18, speed: 2.2, dmg: 1, score: 180, spit: false },
     crab: { name: "Cangrejo Lava", hp: 62, w: 48, h: 28, speed: 0.75, dmg: 1, score: 300, spit: false },
-    seaking: { name: "Rey Marino", hp: 460, w: 78, h: 44, speed: 0.72, dmg: 2, score: 4200, spit: true, boss: true },
+    seaking: { name: "Rey Marino", hp: 520, w: 104, h: 66, speed: 0.9, dmg: 2, score: 4200, boss: true, behavior: "boss", bossPattern: "seaking", phaseScales: [0.9, 1.1, 1.26], color: "#2ec4b6" },
     radstar: { name: "Estrella Radiactiva", hp: 30, w: 44, h: 44, speed: 1.8, dmg: 1, score: 350, flying: true, greenFire: true },
     radboss: { name: "Titan Radiactivo", hp: 950, w: 116, h: 96, speed: 0.8, dmg: 2, score: 6500, boss: true, heavy: true },
     alien_ship: { name: "Nave Nodriza Alienigena", hp: 1200, w: 128, h: 64, speed: 2.2, dmg: 2, score: 9000, boss: true, flying: true },
@@ -1432,22 +1602,27 @@
     bombardier: { name: "Bombardero de Escoria", hp: 36, w: 40, h: 26, speed: 1.15, dmg: 1, score: 330, flying: true, behavior: "bomber", mechanical: true, color: "#ff7b00" },
     tractor_unit: { name: "Unidad Tractora", hp: 58, w: 36, h: 36, speed: 0.7, dmg: 1, score: 460, behavior: "tractor", color: "#bde0fe" },
     mimic: { name: "Mimico de Portal", hp: 64, w: 42, h: 38, speed: 1.3, dmg: 2, score: 520, behavior: "mimic", color: "#ff7b00" },
-    hammer_shark: { name: "Martillo Escualo", hp: 420, w: 86, h: 58, speed: 1.2, dmg: 2, score: 2400, boss: true, behavior: "boss", bossPattern: "hammer", color: "#ff6b35" },
-    sewer_kraken: { name: "Kraken Menor", hp: 500, w: 92, h: 70, speed: 0.9, dmg: 2, score: 2800, boss: true, behavior: "boss", bossPattern: "kraken", color: "#6c2bd9" },
+    hammer_shark: { name: "Martillo Escualo", hp: 420, w: 86, h: 58, speed: 1.2, dmg: 2, score: 2400, boss: true, behavior: "boss", bossPattern: "hammer", phaseScales: [0.86, 1, 1.22], color: "#ff6b35" },
+    agile_scout: { name: "Scout Agil", hp: 540, w: 72, h: 58, speed: 2.55, dmg: 2, score: 3200, boss: true, behavior: "boss", bossPattern: "agile", color: "#5cf6ff", agile: true, airJumps: 1, spriteScale: 1.35, tutorialClass: "agile", tutorialWeapons: ["smg", "plasma"], tutorialSpecials: ["sticky", "sword"] },
+    sewer_kraken: { name: "Kraken Menor", hp: 500, w: 92, h: 70, speed: 0.9, dmg: 2, score: 2800, boss: true, behavior: "boss", bossPattern: "kraken", phaseScales: [0.8, 1, 1.34], color: "#6c2bd9" },
     siren_warlord: { name: "Sirena de Guerra", hp: 560, w: 88, h: 66, speed: 1.1, dmg: 2, score: 3000, boss: true, behavior: "boss", bossPattern: "siren", color: "#ef233c" },
-    magma_eel_lord: { name: "Anguila Volcanica", hp: 620, w: 104, h: 48, speed: 1.5, dmg: 2, score: 3400, boss: true, behavior: "boss", bossPattern: "volcano", color: "#ff7b00" },
+    magma_eel_lord: { name: "Anguila Volcanica", hp: 620, w: 104, h: 48, speed: 1.5, dmg: 2, score: 3400, boss: true, behavior: "boss", bossPattern: "volcano", phaseScales: [0.84, 1, 1.28], color: "#ff7b00" },
     crab_tank: { name: "Tanque Cangrejo", hp: 700, w: 112, h: 70, speed: 0.65, dmg: 3, score: 3800, boss: true, behavior: "boss", bossPattern: "tank", color: "#94d2bd" },
-    ferro_worm: { name: "Gusano Ferrico", hp: 760, w: 118, h: 52, speed: 1.8, dmg: 2, score: 4200, boss: true, behavior: "boss", bossPattern: "worm", color: "#d0d6e0" },
-    admiral_octopus: { name: "Almirante Pulpo", hp: 820, w: 106, h: 76, speed: 0.85, dmg: 2, score: 4500, boss: true, behavior: "boss", bossPattern: "admiral", color: "#c77dff" },
+    heavy_climber: { name: "Escalador Pesado", hp: 840, w: 146, h: 104, speed: 0.58, dmg: 3, score: 4700, boss: true, behavior: "boss", bossPattern: "heavy", giant: true, color: "#ff9f1c", climb: true, canStepUp: true, spriteScale: 1.8, tutorialClass: "heavy", tutorialWeapons: ["fire_shotgun", "minigun"], tutorialSpecials: ["hook", "inertia_gel"] },
+    ferro_worm: { name: "Gusano Ferrico", hp: 760, w: 118, h: 52, speed: 1.8, dmg: 2, score: 4200, boss: true, behavior: "boss", bossPattern: "worm", phaseScales: [0.78, 1, 1.32], color: "#d0d6e0" },
+    admiral_octopus: { name: "Almirante Pulpo", hp: 820, w: 106, h: 76, speed: 0.85, dmg: 2, score: 4500, boss: true, behavior: "boss", bossPattern: "admiral", phaseScales: [0.86, 1, 1.24], color: "#c77dff" },
     ash_golem: { name: "Golem del Bastion", hp: 900, w: 120, h: 96, speed: 0.5, dmg: 3, score: 5000, boss: true, behavior: "boss", bossPattern: "golem", color: "#8d99ae" },
-    magma_emperor: { name: "Emperador Cangrejo", hp: 980, w: 124, h: 86, speed: 0.9, dmg: 3, score: 5600, boss: true, behavior: "boss", bossPattern: "emperor", color: "#ff3c00" },
+    field_medic: { name: "Medico de Campaña", hp: 980, w: 84, h: 98, speed: 1.18, dmg: 2, score: 5900, boss: true, behavior: "boss", bossPattern: "medic", color: "#72f1b8", support: true, spriteScale: 1.55, tutorialClass: "medic", tutorialWeapons: ["cannon", "railgun"], tutorialSpecials: ["med_drone", "time_field"] },
+    magma_emperor: { name: "Emperador Cangrejo", hp: 980, w: 142, h: 102, speed: 0.9, dmg: 3, score: 5600, boss: true, behavior: "boss", bossPattern: "emperor", phaseScales: [0.9, 1.12, 1.36], giant: true, color: "#ff3c00" },
     spore_hydra: { name: "Hidra de Esporas", hp: 1040, w: 118, h: 92, speed: 0.75, dmg: 3, score: 6000, boss: true, behavior: "boss", bossPattern: "hydra", color: "#70e000" },
     gamma_excavator: { name: "Excavador Gamma", hp: 1100, w: 130, h: 82, speed: 0.95, dmg: 3, score: 6400, boss: true, behavior: "boss", bossPattern: "excavator", color: "#ffba08" },
+    field_technician: { name: "Tecnica de Campo", hp: 1180, w: 108, h: 82, speed: 1.02, dmg: 2, score: 6800, boss: true, behavior: "boss", bossPattern: "technician", color: "#c77dff", technician: true, spriteScale: 1.55, tutorialClass: "technician", tutorialWeapons: ["tesla", "cryo"], tutorialSpecials: ["holo_decoy", "emp"] },
     isotope_doctor: { name: "Doctor Isotopo", hp: 1160, w: 88, h: 96, speed: 1.2, dmg: 2, score: 7000, boss: true, behavior: "boss", bossPattern: "doctor", color: "#e0aaff" },
     atomic_locomotive: { name: "Locomotora Atomica", hp: 1220, w: 144, h: 86, speed: 1.7, dmg: 3, score: 7400, boss: true, behavior: "boss", bossPattern: "locomotive", color: "#ffe066" },
     omega_sentinel: { name: "Centinela Omega", hp: 1300, w: 106, h: 98, speed: 1.0, dmg: 3, score: 8000, boss: true, behavior: "boss", bossPattern: "sentinel", color: "#00f0ff" },
-    xeno_carrier: { name: "Portanaves Xeno", hp: 1380, w: 148, h: 82, speed: 1.4, dmg: 3, score: 8500, boss: true, behavior: "boss", bossPattern: "carrier", flying: true, color: "#5cf6ff" },
-    tri_oracle: { name: "Oraculo Tricefalo", hp: 1460, w: 124, h: 98, speed: 1.1, dmg: 3, score: 9000, boss: true, behavior: "boss", bossPattern: "oracle", flying: true, color: "#c77dff" },
+    xeno_carrier: { name: "Portanaves Xeno", hp: 1380, w: 148, h: 82, speed: 1.4, dmg: 3, score: 8500, boss: true, behavior: "boss", bossPattern: "carrier", flying: true, giant: true, color: "#5cf6ff" },
+    tri_oracle: { name: "Oraculo Tricefalo", hp: 1460, w: 124, h: 98, speed: 1.1, dmg: 3, score: 9000, boss: true, behavior: "boss", bossPattern: "oracle", color: "#c77dff" },
+    cerberus: { name: "Cerbero de Retorno", hp: 1320, w: 132, h: 94, speed: 1.48, dmg: 3, score: 9800, boss: true, behavior: "boss", bossPattern: "cerberus", color: "#f72585", beaconRevives: 2, tutorialClass: "phantom", tutorialWeapons: ["flamethrower", "sawblade"], tutorialSpecials: ["return_beacon"] },
     cataclysm_architect: { name: "Arquitecto del Cataclismo", hp: 1800, w: 150, h: 112, speed: 1.25, dmg: 4, score: 15000, boss: true, behavior: "boss", bossPattern: "architect", flying: true, color: "#ffe600" },
   };
 
@@ -1455,6 +1630,15 @@
   // movimiento, temperamento y tres técnicas que compiten según distancia,
   // altura, velocidad del jugador, fase y memoria de ataques recientes.
   const BOSS_PERSONALITIES = {
+    seaking: {
+      style: "duelist",
+      signature: "corte_de_marea",
+      attacks: [
+        { id: "seaking_burst", label: "RAFAGA DE MAREA", kind: "fan", range: "mid", count: 7 },
+        { id: "seaking_charge", label: "CARGA REAL", kind: "dash", range: "far", count: 4 },
+        { id: "seaking_crown", label: "CORONA DE OLAS", kind: "radial", range: "near", count: 10, fire: true },
+      ],
+    },
     hammer: {
       style: "aggressive",
       signature: "estela_de_embestida",
@@ -1462,6 +1646,15 @@
         { id: "hammer_ram", label: "EMBESTIDA ROMPEMUELLES", kind: "dash", range: "far", count: 3 },
         { id: "harbor_shockwave", label: "MAREA DE IMPACTO", kind: "fan", range: "near", count: 5, ground: true },
         { id: "anchor_harpoon", label: "ARPON DE ANCLA", kind: "snipe", range: "far", predictive: true },
+      ],
+    },
+    agile: {
+      style: "skirmisher",
+      signature: "ruta_de_flancos",
+      attacks: [
+        { id: "scout_burst", label: "RAFAGA VIBORA", kind: "fan", range: "near", count: 7 },
+        { id: "scout_double_jump", label: "SALTO DE RECONOCIMIENTO", kind: "cross", range: "mid", count: 6, predictive: true },
+        { id: "scout_dash", label: "DASH DE FLANCO", kind: "dash", range: "far", count: 4, plasma: true },
       ],
     },
     kraken: {
@@ -1500,6 +1693,15 @@
         { id: "mortar_ring", label: "ANILLO DE MORTEROS", kind: "radial", range: "near", count: 12, explode: 20 },
       ],
     },
+    heavy: {
+      style: "climber",
+      signature: "asalto_vertical",
+      attacks: [
+        { id: "heavy_shotgun", label: "DESCARGA INFERNO", kind: "fan", range: "near", count: 9, fire: true },
+        { id: "heavy_minigun", label: "TORMENTA DE PLOMO", kind: "fan", range: "mid", count: 13 },
+        { id: "heavy_dash", label: "EMBESTIDA DE ASCENSO", kind: "dash", range: "far", count: 4, explode: 18 },
+      ],
+    },
     worm: {
       style: "ambusher",
       signature: "emboscada_subterranea",
@@ -1527,6 +1729,15 @@
         { id: "ash_meteor", label: "METEOROS DE CENIZA", kind: "rain", range: "far", count: 7, explode: 28 },
       ],
     },
+    medic: {
+      style: "support",
+      signature: "triage_de_campana",
+      attacks: [
+        { id: "medic_rail", label: "RIEL DE TRIAGE", kind: "snipe", range: "far", predictive: true, stun: true },
+        { id: "medic_drone", label: "DRON DE CAMPO", kind: "summon", range: "mid", count: 5, minion: "drone" },
+        { id: "medic_field", label: "CAMPO TEMPORAL", kind: "field", range: "near", count: 11, slow: true, heal: true },
+      ],
+    },
     emperor: {
       style: "duelist",
       signature: "anillo_de_pinzas",
@@ -1552,6 +1763,15 @@
         { id: "drill_charge", label: "TALADRO GAMMA", kind: "dash", range: "far", count: 5 },
         { id: "gamma_mortar", label: "MORTERO GAMMA", kind: "lob", range: "mid", count: 5, explode: 40 },
         { id: "debris_fan", label: "ABANICO DE ESCOMBROS", kind: "fan", range: "near", count: 9, explode: 18 },
+      ],
+    },
+    technician: {
+      style: "engineer",
+      signature: "red_de_conduccion",
+      attacks: [
+        { id: "tesla_chain", label: "CADENA TESLA", kind: "chain", range: "mid", count: 4, plasma: true },
+        { id: "cryo_burst", label: "RAFAGA CRIOGENICA", kind: "fan", range: "near", count: 8, stun: true },
+        { id: "emp_pulse", label: "PULSO EMP", kind: "radial", range: "far", count: 12, stun: true },
       ],
     },
     doctor: {
@@ -1599,6 +1819,15 @@
         { id: "future_strike", label: "GOLPE DEL FUTURO", kind: "snipe", range: "far", predictive: true, plasma: true },
       ],
     },
+    cerberus: {
+      style: "relentless",
+      signature: "tres_vidas_de_fuego",
+      attacks: [
+        { id: "cerberus_flame", label: "ALIENTO CERBERO", kind: "fan", range: "near", count: 10, fire: true },
+        { id: "cerberus_razor", label: "DISCOS RAZOR", kind: "cross", range: "mid", count: 8, fire: true },
+        { id: "cerberus_beacon", label: "BALIZA DE RETORNO", kind: "summon", range: "far", count: 5, minion: "firebat" },
+      ],
+    },
     architect: {
       style: "adaptive",
       signature: "rejilla_del_cataclismo",
@@ -1627,6 +1856,9 @@
       baseY: y,
       w: d.w,
       h: d.h,
+      baseW: d.w,
+      baseH: d.h,
+      bossScale: 1,
       vx: 0,
       vy: isFlying ? 0 : -2,
       hp: scaledHp,
@@ -1643,6 +1875,7 @@
       anim: 0,
       ignoreLava: true,
       flash: 0,
+      invulnerableTimer: 0,
       color: d.color || "#7bed9f",
       phase: 1,
       shielded: false,
@@ -1653,6 +1886,7 @@
       signatureRush: 0,
       lastSignature: null,
       lastDecision: "emerge",
+      beaconRevives: d.beaconRevives || 0,
       canStepUp: !isFlying && !["turret", "sniper", "mine"].includes(d.behavior),
       stepTimer: 0,
     });
@@ -1665,7 +1899,7 @@
   }
 
   function hurtEnemy(en, dmg) {
-    if (en.dead || en.state === "emerge") return;
+    if (en.dead || en.state === "emerge" || en.invulnerableTimer > 0) return;
     let finalDmg = dmg;
     if (en.type === "radboss") {
       if (en.state === "overheat") {
@@ -1692,6 +1926,30 @@
   }
 
   function killEnemy(en) {
+    const def = ENEMY_TYPES[en.type];
+    if (!en.dead && def && def.boss && en.beaconRevives > 0) {
+      // El Cerbero no termina al primer agotamiento: la Baliza de Retorno
+      // restaura todos sus corazones y exige tres derrotas reales.
+      en.beaconRevives--;
+      en.hp = en.maxHp;
+      en.dead = false;
+      en.state = "hunt";
+      en.t = 0;
+      en.phase = 1;
+      en.phaseTimer = 0;
+      en.cool = 72;
+      en.currentAttack = null;
+      en.attackHistory = [];
+      en.attackUsage = Object.create(null);
+      en.signatureRush = 0;
+      en.invulnerableTimer = 90;
+      en.flash = 0;
+      floatText(en.x + en.w / 2, en.y - 34, "¡BALIZA DE RETORNO! VIDA " + (3 - en.beaconRevives) + "/3", "#ffe600");
+      burst(en.x + en.w / 2, en.y + en.h / 2, "#ffe600", 30);
+      shake = Math.max(shake, 18);
+      sfx.alarm();
+      return;
+    }
     en.dead = true;
     en.t = 0;
     kills++;
@@ -1861,6 +2119,7 @@
     const isTrapped = p.trapped;
     const profile = p.move || CHARACTERS[0];
     const dashing = p.dashMoveTimer > 0;
+    const grapplePulling = !!(p.hook && mouse.right && (p.hook.state === "hookedTile" || (p.hook.state === "hookedEnemy" && p.hook.targetMode === "player")));
 
     const wantCrouch = !dashing && !isStunned && !isTrapped && !!(keys.s || keys.arrowdown) && p.onGround;
     if (wantCrouch && !p.crouch) {
@@ -1891,7 +2150,8 @@
     } else {
       if (ax !== 0) p.vx += ax * acc;
       else p.vx *= p.onGround ? PHYS.FRICTION : PHYS.AIR_FRICTION;
-      p.vx = clamp(p.vx, -max, max);
+      const grappleMax = grapplePulling ? Math.max(max, profile.grappleMaxSpeed || 20) : max;
+      p.vx = clamp(p.vx, -grappleMax, grappleMax);
     }
 
     const jumpHeld = holdingJump();
@@ -2170,13 +2430,40 @@
     else if (style === "duelist") speedFactor = Math.abs(dx) < 150 ? -0.6 : 1.15;
     else if (style === "ambusher") speedFactor = Math.sin(en.t * 0.05) > 0 ? 1.4 : 0.35;
     else if (style === "teleporter") speedFactor = Math.abs(dx) < 190 ? -0.55 : 0.75;
+    else if (style === "skirmisher") speedFactor = Math.abs(dx) < 170 ? -0.9 : (Math.sin(en.t * 0.08) > 0 ? 1.55 : 0.65);
+    else if (style === "climber") speedFactor = Math.abs(dx) < 210 ? -0.18 : 0.9;
+    else if (style === "support") speedFactor = Math.abs(dx) < 330 ? -0.55 : 0.52;
+    else if (style === "engineer") speedFactor = Math.sin(en.t * 0.045) > 0 ? 0.9 : -0.35;
+    else if (style === "relentless") speedFactor = Math.abs(dx) < 190 ? 1.15 : 1.35;
     const rhythm = 0.88 + Math.sin(en.t * 0.09) * 0.2;
     const phasePressure = en.phase >= 4 ? 1.42 : en.phase >= 3 ? 1.22 : 1;
     en.vx = en.facing * def.speed * (en.aggression || 1) * speedFactor * rhythm * phasePressure;
     en.vy += PHYS.GRAVITY * 0.8;
     if (en.vy > PHYS.MAX_FALL) en.vy = PHYS.MAX_FALL;
+    if ((style === "skirmisher" || style === "relentless") && en.onGround && Math.abs(dx) < 360 && en.t % (style === "relentless" ? 92 : 74) === 0) {
+      en.vy = -(style === "relentless" ? 11.5 : 10.4);
+      en.lastDecision = style === "relentless" ? "fire_leap" : "double_jump_flank";
+    }
     moveActor(en);
     en.lastDecision = speedFactor < 0 ? "create_space" : speedFactor === 0 ? "hold_ground" : "pressure";
+  }
+
+  function applyBossPhaseScale(en, def) {
+    if (!def.phaseScales || !def.phaseScales.length) return;
+    const phaseIndex = clamp((en.phase || 1) - 1, 0, def.phaseScales.length - 1);
+    const targetScale = def.phaseScales[phaseIndex] || 1;
+    if (Math.abs(targetScale - (en.bossScale || 1)) < 0.01) return;
+    const centerX = en.x + en.w / 2;
+    const feetY = en.y + en.h;
+    const targetW = Math.max(16, Math.round((en.baseW || def.w) * targetScale));
+    const targetH = Math.max(16, Math.round((en.baseH || def.h) * targetScale));
+    en.w = targetW;
+    en.h = targetH;
+    en.x = clamp(centerX - targetW / 2, 0, Math.max(0, worldW * TILE - targetW));
+    en.y = feetY - targetH;
+    en.bossScale = targetScale;
+    en.scalePulse = 14;
+    burst(centerX, feetY - targetH * 0.5, en.color || def.color || "#ffe600", 8);
   }
 
   function spawnBossHazard(kind, props) {
@@ -2218,10 +2505,20 @@
 
     en.lastSignature = profile.signature;
     switch (def.bossPattern) {
+      case "seaking":
+        horizontal(pcy - 18, { w: 16, delay: 34, life: 54, color: "#2ec4b6", label: "CORTE DE MAREA" });
+        zone(ahead, { r: 44, delay: 48, life: 86, color: "#5cf6ff", label: "OLA REAL" });
+        break;
       case "hammer":
         en.signatureRush = 18 + en.phase * 2;
         en.signatureRushSpeed = 8.8 + en.phase;
         zone(ecx + en.facing * 90, { r: 42, delay: 18, life: 62, color: "#ff6b35", label: "ESTELA ROMPEMUELLES" });
+        break;
+      case "agile":
+        zone(ahead, { r: 34, delay: 24, life: 58, color: "#5cf6ff", label: "RUTA DE FLANCO" });
+        zone(pcx - player.vx * 16, { r: 28, delay: 38, life: 46, color: "#c77dff", label: "ECO DE REPLIEGUE" });
+        en.signatureRush = 9 + en.phase;
+        en.signatureRushSpeed = 12.5 + en.phase * 1.2;
         break;
       case "kraken":
         zone(pcx - 104, { r: 52, delay: 34, life: 126, color: "#6c2bd9", label: "TINTA SEPTICA" });
@@ -2238,6 +2535,10 @@
         horizontal(pcy - 28, { w: 14, delay: 42, life: 48, color: "#94d2bd", label: "BATERIA RASANTE" });
         zone(pcx + en.facing * 120, { r: 36, delay: 56, life: 110, color: "#94d2bd", label: "MORTERO ANCLADO" });
         break;
+      case "heavy":
+        horizontal(pcy + 24, { w: 20, delay: 34, life: 58, color: "#ff9f1c", label: "PESO DE ASALTO" });
+        zone(ahead + en.facing * 112, { r: 50, delay: 44, life: 92, color: "#ff7b00", label: "PARED DE ESCALADA" });
+        break;
       case "worm":
         zone(ahead, { r: 58, delay: 52, life: 54, dmg: 2, color: "#d0d6e0", label: "EMERGENCIA SUBTERRANEA" });
         break;
@@ -2247,6 +2548,10 @@
         break;
       case "golem":
         for (const offset of [-92, 0, 92]) spawnBossHazard("meteor", { x: arenaX(ahead + offset), y: arenaY(pcy - 220 - Math.abs(offset) * 0.2), targetY: floor, r: 27, delay: 24 + Math.abs(offset) / 8, life: 104, color: "#8d99ae", label: "METEORO DE CENIZA" });
+        break;
+      case "medic":
+        zone(pcx - 72, { r: 54, delay: 28, life: 132, color: "#72f1b8", label: "DRON MEDICO", healBoss: true, owner: en, noDamage: true });
+        zone(pcx + 86, { r: 48, delay: 44, life: 112, color: "#b9f6ff", label: "CAMPO TEMPORAL", slow: true, noDamage: true });
         break;
       case "emperor":
         spawnBossHazard("ring", { x: ecx, y: ecy, r: 24, maxR: 170, delay: 26, life: 78, color: "#ff3c00", label: "CORONA DE MAGMA" });
@@ -2258,6 +2563,10 @@
         en.signatureRush = 13 + en.phase * 2;
         en.signatureRushSpeed = 9.2 + en.phase;
         horizontal(pcy + 22, { w: 16, delay: 36, life: 55, color: "#ffba08", label: "CARRIL DE TALADRO" });
+        break;
+      case "technician":
+        vertical(pcx - 74, { w: 14, delay: 30, life: 62, color: "#b9f6ff", label: "BOBINA TESLA" });
+        vertical(pcx + 74, { w: 14, delay: 46, life: 52, color: "#c77dff", label: "PULSO EMP" });
         break;
       case "doctor":
         zone(pcx - 70, { r: 48, delay: 34, life: 132, color: "#e0aaff", label: "MUTAGENO" });
@@ -2279,6 +2588,10 @@
       case "oracle":
         zone(pcx, { r: 42, delay: 58, life: 64, color: "#c77dff", label: "ECO DEL FUTURO" });
         zone(ahead, { r: 34, delay: 76, life: 50, color: "#e0aaff", label: "SEGUNDO ECO" });
+        break;
+      case "cerberus":
+        for (const offset of [-104, 0, 104]) zone(ahead + offset, { r: 42, delay: 24 + Math.abs(offset) / 8, life: 86, color: "#f72585", label: "BALIZA DE RETORNO", fire: true });
+        spawnBossHazard("ring", { x: ecx, y: ecy, r: 22, maxR: 132, delay: 44, life: 64, color: "#ffba08", label: "CERCO CERBERO" });
         break;
       case "architect":
         vertical(pcx - 108, { w: 16, delay: 32, life: 62, color: "#ffe600", label: "REJILLA DEL CATACLISMO" });
@@ -2306,6 +2619,7 @@
       en.phase = finalArchitect
         ? (hpRatio <= 0.16 ? 4 : hpRatio <= 0.40 ? 3 : hpRatio <= 0.70 ? 2 : 1)
         : (hpRatio <= 0.32 ? 3 : hpRatio <= 0.66 ? 2 : 1);
+      applyBossPhaseScale(en, def);
       if (en.lastPhase && en.phase > en.lastPhase && finalArchitect) {
         triggerBossSignature(en, def, { id: "phase_transition" }, pcx, pcy, ecx, ecy);
         floatText(ecx, en.y - 64, "FASE " + en.phase + " · EL MUNDO SE ROMPE", "#ffe600");
@@ -2597,6 +2911,7 @@
       orangeFire: !!attack.fire,
       stunOrb: !!attack.stun && phase >= 2,
       explode: attack.explode || 0,
+      slow: !!attack.slow,
     };
     const fire = (angle, options) => spawnEnemyBullet(ecx, ecy, angle, Object.assign({ color }, options || {}));
     switch (attack.kind) {
@@ -2605,6 +2920,14 @@
         for (let i = 0; i < count; i++) {
           const offset = (i - (count - 1) / 2) * 0.12;
           fire(attackAim + offset, Object.assign({}, baseOptions, { speed: 7.5 + phase, dmg: 2, r: 7 }));
+        }
+        break;
+      case "chain":
+        // La Tesla no es una ráfaga idéntica: cada descarga se abre en
+        // pequeños arcos y deja al jugador menos opciones de cobertura.
+        for (let i = 0; i < count; i++) {
+          const offset = (i - (count - 1) / 2) * 0.14;
+          fire(attackAim + offset, Object.assign({}, baseOptions, { speed: 6.2 + (i % 2) * 0.8, dmg: 1, r: 6, plasma: true }));
         }
         break;
       case "fan":
@@ -2622,6 +2945,23 @@
         break;
       case "radial":
         for (let i = 0; i < count; i++) fire((Math.PI * 2 * i) / count + en.t * 0.008, Object.assign({}, baseOptions, { speed: 4.4 + phase * 0.35, dmg: phase >= 3 ? 2 : 1, r: 7 }));
+        break;
+      case "field":
+        spawnBossHazard("zone", {
+          x: arenaX(pcx + player.vx * 12),
+          y: arenaY(pcy + player.vy * 8),
+          r: 58 + phase * 6,
+          delay: 16,
+          life: 132,
+          color,
+          label: attack.label,
+          slow: !!attack.slow,
+          noDamage: true,
+        });
+        if (attack.heal) {
+          en.hp = Math.min(en.maxHp, en.hp + Math.round(en.maxHp * 0.035));
+          floatText(ecx, en.y - 20, "+TRIAJE", "#72f1b8");
+        }
         break;
       case "spiral":
         for (let i = 0; i < count; i++) fire((Math.PI * 2 * i) / count + en.t * 0.045, Object.assign({}, baseOptions, { speed: 4.2 + (i % 3) * 0.7, dmg: 1, r: 7 }));
@@ -2706,6 +3046,8 @@
       en.t++;
       en.anim += 0.18;
       if (en.flash > 0) en.flash--;
+      if (en.invulnerableTimer > 0) en.invulnerableTimer--;
+      if (en.scalePulse > 0) en.scalePulse--;
       const def = ENEMY_TYPES[en.type];
 
       if (en.burnTimer > 0) {
@@ -2741,6 +3083,17 @@
           en.state = "hunt";
           en.ignoreLava = !!def.boss || en.type === "eel" || en.type === "seaking" || en.type === "radboss" || en.type === "alien_ship";
         }
+        continue;
+      }
+
+      // Un enemigo pequeño enganchado deja de ejecutar su patrón ofensivo
+      // mientras la cuerda lo arrastra. La física de la cuerda sigue siendo la
+      // que mueve su velocidad, y moveActor mantiene las colisiones visibles.
+      if (en.grappled && en.grappleHook && en.grappleHook.state === "hookedEnemy" && en.grappleHook.target === en) {
+        en.vy += PHYS.GRAVITY;
+        if (en.vy > PHYS.MAX_FALL) en.vy = PHYS.MAX_FALL;
+        moveActor(en);
+        en.lastDecision = "grappled_to_player";
         continue;
       }
 
@@ -3277,7 +3630,16 @@
       if (h.kind === "sweep") h.x += h.vx;
       if (h.kind === "ring") h.r += (h.maxR - h.r) * 0.13;
       if (h.hitCool > 0) h.hitCool--;
-      if (!player.dead && h.hitCool <= 0 && bossHazardTouchesPlayer(h)) {
+      const touching = !player.dead && bossHazardTouchesPlayer(h);
+      if (touching && h.slow) {
+        player.vx *= 0.78;
+        player.vy *= 0.9;
+        player.lastHazard = h.label;
+      }
+      if (h.healBoss && h.owner && !h.owner.dead && h.life % 12 === 0) {
+        h.owner.hp = Math.min(h.owner.maxHp, h.owner.hp + Math.max(1, Math.round(h.owner.maxHp * 0.006)));
+      }
+      if (touching && !h.noDamage && h.hitCool <= 0) {
         hurtPlayer(h.dmg || 1);
         h.hitCool = 28;
         burst(player.x + player.w / 2, player.y + player.h / 2, h.color, 8);
@@ -3378,6 +3740,10 @@
     // La selección de personaje ocurre antes de crear el jugador del nivel.
     // Pausar aquí evita que el bucle intente actualizar un jugador null y
     // congele la pantalla con un TypeError en cada frame.
+    if (state === "character_loading") {
+      if (CHARACTER_LOADING.advanceGate(characterLoadingGate, characterSpritesReady())) state = "character_select";
+      return;
+    }
     if (state === "pause" || state === "title" || state === "menu" || state === "character_select" || state === "loadout" || state === "credits" || state === "dead") return;
     if (state === "win") {
       winT++;
@@ -3695,10 +4061,11 @@
     }
   }
 
-  function blit(img, feetX, feetY, flip) {
+  function blit(img, feetX, feetY, flip, scale) {
     ctx.save();
     ctx.translate(Math.round(feetX), Math.round(feetY));
     if (flip) ctx.scale(-1, 1);
+    if (scale && scale !== 1) ctx.scale(scale, scale);
     ctx.imageSmoothingEnabled = false;
     const ox = -Math.round(img.width / 2);
     const oy = -img.height;
@@ -3722,14 +4089,26 @@
     return null;
   }
 
+  // Respaldo inmediato y diferenciado para el primer fotograma: los atlas
+  // son imágenes grandes y pueden tardar en disparar onload. Nunca se debe
+  // reutilizar el sprite del Clásico para representar a otra clase.
+  function drawPlayableFallback(character, feetX, feetY) {
+    const width = character && character.id === "heavy" ? 62 : character && character.id === "agile" ? 48 : 52;
+    const height = character && character.id === "heavy" ? 76 : 70;
+    drawCharacterIcon(character || { id: "classic", color: "#5cf6ff" }, feetX - width / 2, feetY - height, width, height);
+  }
+
+  function drawPlayerFallback(character, feetX, feetY) {
+    drawPlayableFallback(character, feetX, feetY);
+  }
+
   function drawPlayer() {
     const p = player;
     if (p.inv > 0 && p.dashTimer <= 0 && Math.floor(p.inv / 3) % 2 === 0 && !p.dead) return;
     const feetX = p.x + p.w / 2 - cam.x;
     const feetY = p.y + p.h - cam.y;
     const hero = (SPR.heroes && SPR.heroes[p.character]) || {};
-    const fallback = firstReadySprite(SPR.player && SPR.player.idle, hero.idle);
-    const visibleFrame = (...candidates) => firstReadySprite(...candidates, fallback);
+    const visibleFrame = (...candidates) => firstReadySprite(...candidates);
     let frame = visibleFrame(hero.idle);
     if (p.dashMoveTimer > 0 && hero.dash) frame = visibleFrame(hero.dash, hero.idle);
     else if (p.climbing && hero.climb) frame = visibleFrame(hero.climb, hero.idle);
@@ -3741,15 +4120,14 @@
       frame = runFrames.length ? runFrames[Math.floor(p.anim / 4) % runFrames.length] : visibleFrame(hero.idle);
     }
 
-    if (!frame) return;
-
     ctx.save();
     if (p.dead) {
       ctx.translate(feetX, feetY);
       ctx.rotate(Math.min(p.t * 0.08, 1.6));
       ctx.translate(-feetX, -feetY);
     }
-    blit(frame, feetX, feetY, p.facing < 0);
+    if (frame) blit(frame, feetX, feetY, p.facing < 0);
+    else drawPlayerFallback(p.move, feetX, feetY);
 
     if (p.dashMoveTimer > 0) {
       ctx.save();
@@ -3803,6 +4181,11 @@
     ctx.save();
     ctx.translate(Math.round(x), Math.round(y - en.h * 0.5));
     if (en.facing < 0) ctx.scale(-1, 1);
+    // Los bosses sin atlas propio siguen teniendo un ciclo visual: una
+    // respiración leve evita que parezcan una figura pegada al escenario y
+    // sirve de base para los pasos de los perfiles tutoriales.
+    const motion = Math.sin(en.anim * 0.72);
+    ctx.translate(0, motion * (def.boss ? 2.2 : 1.2));
     ctx.globalAlpha = en.flash > 0 ? 0.45 : (en.state === "emerge" ? Math.min(1, en.t / 24) : 1);
     ctx.fillStyle = "#07060c";
     ctx.strokeStyle = color;
@@ -3834,6 +4217,10 @@
       if (p === "hammer") {
         poly([[-w*.48,-h*.22],[-w*.14,-h*.34],[w*.34,-h*.18],[w*.48,h*.05],[w*.12,h*.28],[-w*.28,h*.22]], "#152432");
         box(-w*.42,-h*.4,w*.2,h*.18,color); poly([[-w*.05,-h*.2],[w*.1,-h*.5],[w*.18,-h*.14]], color); eye(w*.23,-h*.08,3);
+      } else if (p === "agile") {
+        poly([[-w*.34,-h*.04],[-w*.08,-h*.45],[w*.28,-h*.28],[w*.46,h*.1],[w*.08,h*.34],[-w*.3,h*.25]], "#102932");
+        limb(-w*.16,h*.12,-w*.42,h*.44 + motion * 3,4); limb(w*.15,h*.12,w*.4,h*.42 - motion * 3,4);
+        box(-w*.3,-h*.48,w*.28,h*.18,color); eye(w*.2,-h*.16,3); limb(w*.15,-h*.08,w*.52,-h*.26 + motion * 2,4);
       } else if (p === "kraken") {
         orb(0,-h*.15,h*.32,"#21113b");
         for (let i=-3;i<=3;i++) { const sx=i*w*.1; limb(sx,h*.05,sx+(i%2?10:-10),h*.48,5); }
@@ -3880,6 +4267,21 @@
         poly([[-w*.36,-h*.05],[0,-h*.34],[w*.36,-h*.05],[w*.25,h*.5],[-w*.25,h*.5]],"#25153c");
         for(let i=-1;i<=1;i++){ orb(i*w*.2,-h*.32-(i===0?14:0),h*.15,"#332052"); eye(i*w*.2,-h*.33-(i===0?14:0),4); }
         orb(0,h*.05,9,color);
+      } else if (p === "heavy") {
+        box(-w*.45,-h*.2,w*.9,h*.5,"#25221b"); box(-w*.32,-h*.5,w*.64,h*.28,"#3a3324");
+        limb(-w*.28,h*.22,-w*.42,h*.48 + motion * 2,9); limb(w*.28,h*.22,w*.44,h*.48 - motion * 2,9); limb(w*.1,-h*.3,w*.52,-h*.48 + motion,8); eye(0,-h*.33,4);
+      } else if (p === "medic") {
+        orb(0,-h*.34,h*.16,"#172a2b"); box(-w*.28,-h*.12,w*.56,h*.58,"#1b3232");
+        box(-w*.5,h*.02,w*.2,h*.28,"#244c42"); box(w*.3,h*.02,w*.2,h*.28,"#244c42");
+        ctx.fillStyle = color; ctx.fillRect(-4,-h*.37,8,20); ctx.fillRect(-10,-h*.28,20,7); eye(8,-h*.34,3);
+      } else if (p === "technician") {
+        box(-w*.34,-h*.3,w*.68,h*.6,"#211b35"); box(-w*.26,-h*.52,w*.52,h*.2,"#30234a");
+        limb(-w*.22,h*.2,-w*.48,h*.44 + motion * 2,4); limb(w*.22,h*.2,w*.5,h*.44 - motion * 2,4); orb(0,-h*.12,8,color); eye(0,-h*.12,3);
+        limb(w*.2,-h*.25,w*.55,-h*.52 + motion * 2,4);
+      } else if (p === "cerberus") {
+        poly([[-w*.46,h*.2],[-w*.35,-h*.2],[-w*.18,-h*.42],[0,-h*.22],[w*.18,-h*.42],[w*.38,-h*.18],[w*.48,h*.22],[w*.2,h*.45],[-w*.2,h*.45]], "#321329");
+        for (const [i, hx] of [-w*.23, 0, w*.23].entries()) { const headBob = motion * (i === 1 ? 2.5 : -1.5); orb(hx,-h*.3 + headBob,h*.13,"#4a1631"); eye(hx + 4,-h*.32 + headBob,3); }
+        limb(-w*.25,h*.25,-w*.45,h*.5 + motion * 2,5); limb(w*.25,h*.25,w*.45,h*.5 - motion * 2,5);
       } else {
         // El Arquitecto cambia de silueta con la fase: núcleo, órbitas y
         // fragmentos representan que recompone la geometría del escenario.
@@ -3921,6 +4323,157 @@
     ctx.restore();
   }
 
+  // Lectura de intención: cada técnica del boss deja una silueta visual
+  // distinta durante el anuncio y la recuperación. Así se entiende si viene
+  // una carga, un abanico, un rayo o control de zona sin depender sólo del
+  // texto flotante.
+  function drawBossIntent(en, def, x, y) {
+    if (!en || !def || !def.boss || !en.currentAttack || en.dead) return;
+    // El Arquitecto final conserva su telemetría y puesta en escena original;
+    // esta lectura adicional se reserva para los bosses rediseñados.
+    if (def.bossPattern === "architect" && currentLevel === CAMPAIGN.length) return;
+    const active = en.state === "telegraph" || en.state === "recover" || en.signatureRush > 0;
+    if (!active) return;
+    const attack = en.currentAttack;
+    const color = def.color || en.color || "#ffe600";
+    const originY = en.y + en.h * 0.42 - cam.y;
+    const targetX = player.x + player.w / 2 - cam.x;
+    const targetY = player.y + player.h / 2 - cam.y;
+    const direction = en.facing < 0 ? -1 : 1;
+    const alpha = en.state === "telegraph" ? 0.9 : en.signatureRush > 0 ? 0.76 : 0.46;
+    const lineTo = (x1, y1, x2, y2, width) => {
+      ctx.lineWidth = width || 2;
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    };
+    const arrow = (x1, y1, x2, y2) => {
+      lineTo(x1, y1, x2, y2, 3);
+      const angle = Math.atan2(y2 - y1, x2 - x1);
+      const size = 10;
+      lineTo(x2, y2, x2 - Math.cos(angle - 0.5) * size, y2 - Math.sin(angle - 0.5) * size, 3);
+      lineTo(x2, y2, x2 - Math.cos(angle + 0.5) * size, y2 - Math.sin(angle + 0.5) * size, 3);
+    };
+    const origin = () => [x + direction * en.w * 0.2, originY];
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineJoin = "round";
+    ctx.setLineDash(en.state === "telegraph" ? [8, 5] : []);
+    const [ox, oy] = origin();
+    switch (attack.kind) {
+      case "dash": {
+        arrow(ox, oy, ox + direction * 170, oy);
+        ctx.beginPath(); ctx.arc(ox + direction * 82, oy, 10 + Math.sin(time * 0.3) * 3, 0, Math.PI * 2); ctx.stroke();
+        break;
+      }
+      case "fan": {
+        const count = Math.min(7, Math.max(3, attack.count || 5));
+        const base = direction > 0 ? 0 : Math.PI;
+        const spread = attack.ground ? 0.5 : 0.8;
+        for (let i = 0; i < count; i++) {
+          const a = base - spread / 2 + spread * (i / Math.max(1, count - 1));
+          lineTo(ox, oy, ox + Math.cos(a) * 150, oy + Math.sin(a) * 150, 2);
+        }
+        break;
+      }
+      case "cross": {
+        lineTo(ox - 118, oy, ox + 118, oy, 2);
+        lineTo(ox, oy - 92, ox, oy + 92, 2);
+        ctx.beginPath(); ctx.arc(ox, oy, 12 + Math.sin(time * 0.24) * 4, 0, Math.PI * 2); ctx.stroke();
+        break;
+      }
+      case "radial":
+      case "spiral": {
+        const radius = 54 + Math.sin(time * 0.24) * 8;
+        ctx.beginPath(); ctx.arc(ox, oy, radius, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(ox, oy, radius * 0.5, time * 0.06, time * 0.06 + Math.PI * 1.25); ctx.stroke();
+        break;
+      }
+      case "wall": {
+        for (const offset of [-88, 0, 88]) lineTo(targetX + offset, 44, targetX + offset, VIEW_H - 30, 3);
+        lineTo(targetX - 118, targetY, targetX + 118, targetY, 2);
+        break;
+      }
+      case "snipe": {
+        arrow(ox, oy, targetX, targetY);
+        ctx.beginPath(); ctx.arc(targetX, targetY, 14 + Math.sin(time * 0.3) * 3, 0, Math.PI * 2); ctx.stroke();
+        lineTo(targetX - 20, targetY, targetX + 20, targetY, 2);
+        lineTo(targetX, targetY - 20, targetX, targetY + 20, 2);
+        break;
+      }
+      case "field": {
+        ctx.fillStyle = color;
+        ctx.globalAlpha = alpha * 0.22;
+        ctx.beginPath(); ctx.arc(targetX, targetY, 62 + Math.sin(time * 0.2) * 8, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = alpha;
+        ctx.beginPath(); ctx.arc(targetX, targetY, 62 + Math.sin(time * 0.2) * 8, 0, Math.PI * 2); ctx.stroke();
+        break;
+      }
+      case "summon": {
+        const radius = 34 + Math.sin(time * 0.18) * 7;
+        ctx.beginPath(); ctx.arc(ox, oy, radius, 0, Math.PI * 2); ctx.stroke();
+        for (let i = 0; i < 3; i++) {
+          const a = time * 0.05 + i * Math.PI * 2 / 3;
+          ctx.beginPath(); ctx.arc(ox + Math.cos(a) * radius, oy + Math.sin(a) * radius, 7, 0, Math.PI * 2); ctx.stroke();
+        }
+        break;
+      }
+      case "lob":
+      case "minefield": {
+        const span = Math.max(80, Math.min(170, Math.abs(targetX - ox)));
+        for (let i = 0; i < 4; i++) {
+          const px = ox + direction * span * (i + 1) / 4;
+          ctx.beginPath(); ctx.arc(px, targetY + 28 + (i % 2) * 10, 11, 0, Math.PI * 2); ctx.stroke();
+        }
+        break;
+      }
+      case "rain": {
+        for (let i = -2; i <= 2; i++) lineTo(targetX + i * 38, 48, targetX + i * 38, targetY + 30, 2);
+        break;
+      }
+      case "tractor":
+      case "chain": {
+        lineTo(ox, oy, targetX, targetY, 3);
+        for (let i = 1; i < 5; i++) {
+          const t = i / 5;
+          const px = ox + (targetX - ox) * t;
+          const py = oy + (targetY - oy) * t + (i % 2 ? -10 : 10);
+          ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2); ctx.stroke();
+        }
+        break;
+      }
+      case "teleport": {
+        ctx.beginPath(); ctx.arc(ox, oy, 28 + Math.sin(time * 0.2) * 4, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(targetX, targetY, 28 + Math.sin(time * 0.2) * 4, 0, Math.PI * 2); ctx.stroke();
+        lineTo(ox, oy, targetX, targetY, 2);
+        break;
+      }
+      case "shockwave": {
+        ctx.beginPath(); ctx.arc(ox, oy, 30 + Math.sin(time * 0.25) * 5, 0, Math.PI); ctx.stroke();
+        ctx.beginPath(); ctx.arc(ox, oy, 66 + Math.sin(time * 0.25) * 5, 0, Math.PI); ctx.stroke();
+        break;
+      }
+      case "cataclysm": {
+        const size = 68 + Math.sin(time * 0.16) * 8;
+        ctx.strokeRect(ox - size, oy - size, size * 2, size * 2);
+        lineTo(ox - size, oy - size, ox + size, oy + size, 2);
+        lineTo(ox + size, oy - size, ox - size, oy + size, 2);
+        break;
+      }
+      default:
+        ctx.beginPath(); ctx.arc(ox, oy, 38 + Math.sin(time * 0.2) * 5, 0, Math.PI * 2); ctx.stroke();
+        break;
+    }
+    ctx.setLineDash([]);
+    if (en.state === "telegraph" && attack.label) {
+      ctx.globalAlpha = 0.95;
+      ctx.font = "bold 10px Courier New";
+      ctx.textAlign = "center";
+      ctx.fillText(attack.label, x, Math.max(18, en.y - cam.y - 14));
+    }
+    ctx.restore();
+  }
+
   function drawEnemy(en) {
     const x = en.x + en.w / 2 - cam.x;
     const y = en.y + en.h - cam.y;
@@ -3928,7 +4481,10 @@
     const set = SPR[en.type];
     const def = ENEMY_TYPES[en.type];
     if (!set) {
-      if (def) drawFallbackEnemy(en, def, x, y);
+      if (def) {
+        drawFallbackEnemy(en, def, x, y);
+        drawBossIntent(en, def, x, y);
+      }
       drawEnemyHealth(en);
       return;
     }
@@ -3936,7 +4492,8 @@
     let frame = locomotionFrame;
 
     if (def && def.behavior === "boss") {
-      if (en.state === "telegraph" || en.state === "recover" || en.currentAttack) frame = set.shoot || frame;
+      const preserveFinalArchitect = def.bossPattern === "architect" && currentLevel === CAMPAIGN.length;
+      if (en.state === "telegraph" || en.state === "recover" || en.signatureRush > 0 || (preserveFinalArchitect && en.currentAttack)) frame = set.shoot || frame;
       else if (Math.abs(en.vx) > 0.18) frame = set.walk || frame;
     } else if (en.lastDecision === "shield_pulse" || (def && (def.behavior === "turret" || def.behavior === "sniper") && en.cool < 18)) {
       frame = set.shoot || frame;
@@ -4006,6 +4563,7 @@
     frame = firstReadySprite(frame, locomotionFrame, set.walk, set.idle);
     if (!frame) {
       drawFallbackEnemy(en, def, x, y);
+      drawBossIntent(en, def, x, y);
       drawEnemyHealth(en);
       return;
     }
@@ -4030,9 +4588,11 @@
       ctx.shadowBlur = 16;
     }
 
-    blit(frame, x, y, en.facing < 0);
+    const spriteScale = def && def.boss ? (def.spriteScale || 1) * (en.bossScale || 1) : 1;
+    blit(frame, x, y, en.facing < 0, spriteScale);
     ctx.restore();
 
+    drawBossIntent(en, def, x, y);
     drawEnemyHealth(en);
   }
 
@@ -4099,6 +4659,26 @@
     }
   }
 
+  function drawHookRope(g, x, y) {
+    const startX = player.x + player.w / 2 - cam.x;
+    const startY = player.y + player.h / 2 - cam.y;
+    const dx = x - startX;
+    const dy = y - startY;
+    const currentLength = Math.hypot(dx, dy);
+    const slack = Math.max(0, (g.ropeLength || currentLength) - currentLength);
+    const sag = Math.min(28, slack * 0.14);
+    ctx.save();
+    ctx.strokeStyle = g.state === "hookedTile" ? "rgba(208,214,224,.88)" : "rgba(114,241,184,.9)";
+    ctx.lineWidth = 2;
+    ctx.shadowColor = g.state === "hookedTile" ? "rgba(208,214,224,.55)" : "rgba(114,241,184,.55)";
+    ctx.shadowBlur = 5;
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.quadraticCurveTo((startX + x) / 2, (startY + y) / 2 + sag, x, y);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   function drawGadgets() {
     for (const g of gadgets) {
       const x = g.x - cam.x, y = g.y - cam.y;
@@ -4126,8 +4706,7 @@
         ctx.globalAlpha = 0.28 + Math.sin(time * 0.16) * 0.14; ctx.fillStyle = g.color; ctx.beginPath(); ctx.arc(x, y - 18, 16, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
       } else if (g.hook) {
-        ctx.strokeStyle = "rgba(208,214,224,.8)"; ctx.lineWidth = 2; ctx.beginPath();
-        ctx.moveTo(player.x + player.w / 2 - cam.x, player.y + player.h / 2 - cam.y); ctx.lineTo(x, y); ctx.stroke();
+        drawHookRope(g, x, y);
         ctx.fillStyle = g.color; ctx.beginPath(); ctx.moveTo(x + 8, y); ctx.lineTo(x - 6, y - 7); ctx.lineTo(x - 3, y); ctx.lineTo(x - 6, y + 7); ctx.closePath(); ctx.fill();
       } else if (g.state === "puddle") {
         const gelFrame = SPR.gel && (Math.floor(time / 8) % 2 ? SPR.gel.ripple : SPR.gel.puddle);
@@ -4243,7 +4822,10 @@
     ctx.fillStyle = special.color;
     ctx.textAlign = "left";
     ctx.font = "9px Courier New";
-    ctx.fillText("RMB " + special.name + (p.specialCool > 0 ? " · " + Math.ceil(p.specialCool / 60) + "s" : " · LISTO"), VIEW_W - 254, 64);
+    const specialStatus = special.hook
+      ? (p.hook ? "MANTEN · SUELTA LIBERA" : "MANTEN PARA TENSAR")
+      : (p.specialCool > 0 ? Math.ceil(p.specialCool / 60) + "s" : "LISTO");
+    ctx.fillText("RMB " + (special.hook ? special.short : special.name) + " · " + specialStatus, VIEW_W - 254, 64);
 
     const dashReady = p.dashTimer > 0 ? "DASH ACTIVO" : (p.dashCool > 0 ? "DASH " + Math.ceil(p.dashCool / 6) / 10 + "s" : "DASH LISTO");
     ctx.font = "bold 9px Courier New";
@@ -4320,6 +4902,10 @@
         else if (activeBoss.state === "tractor") statusTag = " [¡RAYO TRACTOR DE GRAVEDAD!]";
         else if (activeBoss.state === "stun_orb") statusTag = " [¡ORBE PARALIZANTE!]";
         else statusTag = " [ESCUDOS DE PLASMA]";
+      } else if (activeBoss.type === "cerberus") {
+        statusTag = activeBoss.invulnerableTimer > 0
+          ? " [BALIZA: REARMANDO]"
+          : " [BALIZA " + (3 - (activeBoss.beaconRevives || 0)) + "/3]";
       } else if (ENEMY_TYPES[activeBoss.type].behavior === "boss") {
         statusTag = " [FASE " + (activeBoss.phase || 1) + " · " + (activeBoss.state === "telegraph" ? "ATAQUE ANUNCIADO" : "PATRON ACTIVO") + "]";
       }
@@ -4738,6 +5324,7 @@
       prensas: "PRENSAS INDUSTRIALES",
       teletransporte: "SALTOS CUANTICOS",
       convoy: "CONVOY EN MARCHA",
+      baliza: "TRES VIDAS · BALIZA DE RETORNO",
       oscuridad: "VISIBILIDAD REDUCIDA",
       gravedad: "GRAVEDAD VARIABLE",
       viento: "CORRIENTES DE VIENTO",
@@ -4796,9 +5383,10 @@
       ctx.restore();
 
       ctx.fillStyle = unlocked ? (selected ? color : "#d0d6e0") : "#626979";
-      ctx.font = "bold 12px Courier New";
+      const levelTitle = "NIVEL " + c.num + ": " + c.title;
+      ctx.font = fitCanvasFont(levelTitle, cardW - 12, 12, 8);
       ctx.textAlign = "center";
-      ctx.fillText("NIVEL " + c.num + ": " + c.title, x + cardW / 2, cardY + 25);
+      ctx.fillText(levelTitle, x + cardW / 2, cardY + 25);
       ctx.fillStyle = unlocked ? color : "#454a58";
       ctx.font = "bold 9px Courier New";
       ctx.fillText(c.tag || ("DIFICULTAD " + c.difficulty), x + cardW / 2, cardY + 44);
@@ -4865,7 +5453,33 @@
     ctx.strokeStyle = character.color;
     ctx.fillStyle = character.color;
     ctx.lineWidth = 4;
-    if (character.id === "medic") {
+    if (character.id === "classic") {
+      // Casco, visor cian y capa roja: respaldo reconocible aunque aún no
+      // haya terminado de cargar el atlas de alta resolución.
+      ctx.fillStyle = "#172033"; ctx.fillRect(cx - 17, cy - 37, 34, 22); ctx.strokeRect(cx - 17, cy - 37, 34, 22);
+      ctx.fillStyle = "#5cf6ff"; ctx.fillRect(cx - 13, cy - 29, 26, 10);
+      ctx.fillStyle = "#16233a"; ctx.fillRect(cx - 20, cy - 12, 40, 29); ctx.strokeRect(cx - 20, cy - 12, 40, 29);
+      ctx.fillStyle = "#ef233c"; ctx.fillRect(cx - 27, cy - 8, 7, 25); ctx.fillRect(cx + 20, cy - 8, 7, 25);
+      ctx.fillStyle = "#0b1020"; ctx.fillRect(cx - 13, cy + 17, 10, 27); ctx.fillRect(cx + 3, cy + 17, 10, 27);
+      ctx.fillStyle = "#e0b33a"; ctx.fillRect(cx - 25, cy - 38, 7, 5); ctx.fillRect(cx + 18, cy - 38, 7, 5);
+    } else if (character.id === "agile") {
+      // Silueta ligera inclinada, trenza y dos estelas: comunica velocidad y
+      // la lectura de doble salto del Scout.
+      ctx.fillStyle = "#122837"; ctx.fillRect(cx - 12, cy - 20, 24, 29); ctx.strokeRect(cx - 12, cy - 20, 24, 29);
+      ctx.fillStyle = "#5cf6ff"; ctx.fillRect(cx - 10, cy - 34, 20, 12); ctx.strokeRect(cx - 10, cy - 34, 20, 12);
+      ctx.strokeStyle = "#d8fbff"; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(cx - 8, cy + 8); ctx.lineTo(cx - 25, cy + 36); ctx.moveTo(cx + 7, cy + 8); ctx.lineTo(cx + 26, cy + 28); ctx.stroke();
+      ctx.strokeStyle = "#5cf6ff"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cx - 16, cy - 20); ctx.lineTo(cx - 40, cy - 33); ctx.moveTo(cx - 18, cy - 15); ctx.lineTo(cx - 44, cy - 18); ctx.stroke();
+      ctx.strokeStyle = "#c77dff"; ctx.beginPath(); ctx.moveTo(cx + 14, cy + 2); ctx.lineTo(cx + 34, cy - 16); ctx.stroke();
+    } else if (character.id === "heavy") {
+      // Placas anchas, hombros y botas separadas: el respaldo del Pesado no
+      // se confunde con el cuerpo estrecho del Clásico.
+      ctx.fillStyle = "#3a3324"; ctx.fillRect(cx - 22, cy - 35, 44, 22); ctx.strokeRect(cx - 22, cy - 35, 44, 22);
+      ctx.fillStyle = "#ff9f1c"; ctx.fillRect(cx - 13, cy - 28, 26, 9);
+      ctx.fillStyle = "#25221b"; ctx.fillRect(cx - 28, cy - 9, 56, 32); ctx.strokeRect(cx - 28, cy - 9, 56, 32);
+      ctx.fillStyle = "#ff9f1c"; ctx.fillRect(cx - 36, cy - 7, 8, 27); ctx.fillRect(cx + 28, cy - 7, 8, 27);
+      ctx.fillStyle = "#171922"; ctx.fillRect(cx - 19, cy + 22, 15, 24); ctx.fillRect(cx + 4, cy + 22, 15, 24);
+      ctx.fillStyle = "#ffba08"; ctx.fillRect(cx - 24, cy + 44, 20, 5); ctx.fillRect(cx + 4, cy + 44, 20, 5);
+    } else if (character.id === "medic") {
       ctx.beginPath(); ctx.arc(cx, cy - 19, 16, 0, Math.PI * 2); ctx.stroke();
       ctx.fillRect(cx - 18, cy + 2, 36, 30);
       ctx.fillStyle = "#07060c"; ctx.fillRect(cx - 4, cy - 28, 8, 18); ctx.fillRect(cx - 9, cy - 23, 18, 8);
@@ -4875,12 +5489,71 @@
       ctx.beginPath(); ctx.moveTo(cx - 24, cy + 34); ctx.lineTo(cx, cy + 2); ctx.lineTo(cx + 24, cy + 34); ctx.closePath(); ctx.fill();
       ctx.beginPath(); ctx.moveTo(cx + 11, cy - 28); ctx.lineTo(cx + 28, cy - 48); ctx.stroke();
       ctx.fillStyle = "#07060c"; ctx.fillRect(cx - 10, cy - 18, 20, 6); ctx.fillRect(cx - 4, cy + 10, 8, 14);
+    } else if (character.id === "phantom") {
+      ctx.beginPath(); ctx.moveTo(cx - 28, cy + 30); ctx.lineTo(cx - 24, cy - 4); ctx.lineTo(cx - 13, cy - 28); ctx.lineTo(cx, cy - 11); ctx.lineTo(cx + 13, cy - 28); ctx.lineTo(cx + 24, cy - 4); ctx.lineTo(cx + 28, cy + 30); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#07060c"; ctx.fillRect(cx - 19, cy - 12, 10, 8); ctx.fillRect(cx - 5, cy - 17, 10, 8); ctx.fillRect(cx + 9, cy - 12, 10, 8);
+      ctx.strokeStyle = "#ffe600"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(cx + 18, cy + 5); ctx.lineTo(cx + 45, cy - 17); ctx.stroke();
     } else {
       ctx.beginPath(); ctx.moveTo(cx, cy - 44); ctx.lineTo(cx + 25, cy); ctx.lineTo(cx, cy + 43); ctx.lineTo(cx - 25, cy); ctx.closePath(); ctx.fill();
       ctx.fillStyle = "#07060c"; ctx.fillRect(cx - 4, cy - 20, 8, 38);
       ctx.strokeStyle = "rgba(247,37,133,.55)"; ctx.beginPath(); ctx.moveTo(cx - 28, cy + 30); ctx.lineTo(cx - 48, cy + 48); ctx.moveTo(cx + 28, cy + 30); ctx.lineTo(cx + 48, cy + 48); ctx.stroke();
     }
     ctx.restore();
+  }
+
+  function drawCharacterCardFallback(character, x, y, w, h) {
+    // El atlas puede fallar al abrir el juego desde un archivo local o con una
+    // red lenta. Este retrato por clase mantiene la tarjeta utilizable sin
+    // reutilizar el sprite del Clásico ni bloquear la campaña.
+    ctx.save();
+    ctx.globalAlpha = 0.92;
+    drawCharacterIcon(character, x, y, w, h);
+    ctx.restore();
+  }
+
+  const CHARACTER_CARD_TEXT_WIDTH = 158;
+  function fitCanvasFont(value, maxWidth, baseSize, minSize, weight) {
+    const text = String(value || "");
+    const lowerBound = minSize === undefined ? 8 : minSize;
+    const style = weight || "bold";
+    let size = baseSize;
+    while (size > lowerBound) {
+      ctx.font = style + " " + size + "px Courier New";
+      if (ctx.measureText(text).width <= maxWidth) break;
+      size -= 1;
+    }
+    ctx.font = style + " " + size + "px Courier New";
+    return ctx.font;
+  }
+
+  function wrapCanvasText(value, maxWidth) {
+    const words = String(value || "").trim().split(/\s+/).filter(Boolean);
+    if (!words.length) return [""];
+    const lines = [];
+    let line = "";
+    for (const word of words) {
+      const candidate = line ? line + " " + word : word;
+      if (line && ctx.measureText(candidate).width > maxWidth) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = candidate;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+
+  function drawCharacterLoading() {
+    drawBg();
+    ctx.fillStyle = "rgba(7,6,12,.94)"; roundRect(30, 18, VIEW_W - 60, VIEW_H - 36, 10); ctx.fill();
+    ctx.strokeStyle = "#e0b33a"; ctx.lineWidth = 3; roundRect(30, 18, VIEW_W - 60, VIEW_H - 36, 10); ctx.stroke();
+    ctx.textAlign = "center"; ctx.fillStyle = "#5cf6ff"; ctx.font = "bold 24px Courier New";
+    ctx.fillText("CARGANDO PERSONAJES", VIEW_W / 2, 230);
+    ctx.fillStyle = "#aeb8ca"; ctx.font = "11px Courier New";
+    ctx.fillText("PREPARANDO LOS SPRITES ORIGINALES", VIEW_W / 2, 255);
+    ctx.strokeStyle = "#5cf6ff"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(VIEW_W / 2, 292, 18, time * 0.14, time * 0.14 + Math.PI * 1.45); ctx.stroke();
   }
 
   function drawCharacterSelect() {
@@ -4892,24 +5565,38 @@
     ctx.fillStyle = "#8b9bb4"; ctx.font = "11px Courier New";
     ctx.fillText("← / → ELIGE · ↑ / ↓ FILA · 1-6 ATAJO · ENTER CONFIRMA", VIEW_W / 2, 77);
     for (let i = 0; i < CHARACTERS.length; i++) {
-      const c = CHARACTERS[i]; const selected = characterCursor === i;
+      const c = CHARACTERS[i]; const selected = characterCursor === i; const available = characterIsAvailable(c.id, characterTargetLevel);
       const x = 54 + (i % 3) * 290; const y = 100 + Math.floor(i / 3) * 174;
       ctx.fillStyle = selected ? "rgba(30,58,68,.96)" : "rgba(15,18,28,.9)"; roundRect(x, y, 260, 156, 8); ctx.fill();
-      ctx.strokeStyle = selected ? c.color : "#343a4a"; ctx.lineWidth = selected ? 4 : 1; roundRect(x, y, 260, 156, 8); ctx.stroke();
+      ctx.strokeStyle = selected ? c.color : (available ? "#343a4a" : "#242938"); ctx.lineWidth = selected ? 4 : 1; roundRect(x, y, 260, 156, 8); ctx.stroke();
       const hero = SPR.heroes && SPR.heroes[c.id];
-      const frame = firstReadySprite(hero && hero.select, hero && hero.idle, SPR.player && SPR.player.idle);
+      // El sprite histórico del Clásico no es un sustituto válido para las
+      // demás clases. Si el atlas aún carga, drawCharacterIcon mantiene la
+      // identidad visual de cada tarjeta.
+      const frame = firstReadySprite(hero && hero.select, hero && hero.idle);
       if (selected) {
         ctx.save(); ctx.fillStyle = c.color; ctx.globalAlpha = 0.14 + Math.sin(time * 0.09) * 0.04;
         ctx.beginPath(); ctx.arc(x + 50, y + 57, 48, 0, Math.PI * 2); ctx.fill(); ctx.restore();
       }
       if (frame) ctx.drawImage(frame, x + 13, y + 8, 70, 88);
-      else drawCharacterIcon(c, x + 13, y + 8, 70, 88);
-      ctx.textAlign = "left"; ctx.fillStyle = c.color; ctx.font = "bold 12px Courier New"; ctx.fillText((selected ? "▶ " : "") + c.title, x + 88, y + 27);
+      else drawCharacterCardFallback(c, x + 13, y + 8, 70, 88);
+      ctx.textAlign = "left"; ctx.fillStyle = c.color;
+      const characterTitle = (selected ? "▶ " : "") + c.title;
+      ctx.font = fitCanvasFont(characterTitle, 164, 12, 8);
+      ctx.fillText(characterTitle, x + 88, y + 27);
       ctx.fillStyle = "#fff"; ctx.font = "bold 11px Courier New"; ctx.fillText(c.maxHp + " CORAZONES", x + 88, y + 48);
-      ctx.fillStyle = "#aeb8ca"; ctx.font = "9px Courier New"; ctx.fillText(c.description, x + 88, y + 67);
+      ctx.fillStyle = "#aeb8ca"; ctx.font = "8px Courier New";
+      const descriptionLines = wrapCanvasText(c.description, CHARACTER_CARD_TEXT_WIDTH);
+      for (let lineIndex = 0; lineIndex < Math.min(2, descriptionLines.length); lineIndex++) {
+        ctx.fillText(descriptionLines[lineIndex], x + 88, y + 66 + lineIndex * 11);
+      }
       const speedText = c.climb ? "LENTO · ESCALADA" : "VEL. " + (c.run > 1 ? "ALTA" : c.run < 0.9 ? "BAJA" : "MEDIA") + " · SALTO";
-      ctx.fillStyle = "#8b9bb4"; ctx.font = "9px Courier New"; ctx.fillText(speedText, x + 88, y + 84);
+      ctx.fillStyle = "#8b9bb4"; ctx.font = "9px Courier New"; ctx.fillText(speedText, x + 88, y + 90);
       ctx.fillStyle = c.color; ctx.font = "bold 9px Courier New"; ctx.fillText("[" + (i + 1) + "] " + c.name, x + 12, y + 124);
+      if (!available) {
+        ctx.fillStyle = "#ef233c"; ctx.font = "bold 9px Courier New";
+        ctx.fillText("🔒 DERROTA EL NIVEL " + characterUnlockLevel(c.id), x + 88, y + 108);
+      }
       ctx.fillStyle = "#ffe600"; ctx.font = "bold 18px Courier New"; if (selected) ctx.fillText("▶", x + 232, y + 28);
       ctx.textAlign = "center";
     }
@@ -4918,7 +5605,7 @@
     ctx.save(); ctx.fillStyle = active.color; if (hoverConfirm) { ctx.shadowColor = active.color; ctx.shadowBlur = 18; }
     roundRect(310, 454, 340, 42, 6); ctx.fill(); ctx.restore();
     ctx.fillStyle = "#07060c"; ctx.textAlign = "center"; ctx.font = "bold 13px Courier New";
-    ctx.fillText("CONFIRMAR " + active.name + " [ENTER]", VIEW_W / 2, 481);
+    ctx.fillText(characterIsAvailable(active.id, characterTargetLevel) ? "CONFIRMAR " + active.name + " [ENTER]" : "BLOQUEADO · DERROTA NIVEL " + characterUnlockLevel(active.id), VIEW_W / 2, 481);
   }
 
   function drawLoadout() {
@@ -4929,7 +5616,18 @@
     ctx.fillText("PREPARAR EQUIPO · NIVEL " + loadoutTargetLevel, VIEW_W / 2, 48);
     ctx.fillStyle = "#8b9bb4"; ctx.font = "10px Courier New";
     ctx.fillText("ELIGE HASTA 2 ARMAS PRINCIPALES Y 2 ESPECIALES · ESPACIO/CLIC EQUIPA", VIEW_W / 2, 69);
-    if (pendingReward) { ctx.fillStyle = pendingReward.kind === "weapon" ? "#5cf6ff" : "#72f1b8"; ctx.font = "bold 11px Courier New"; ctx.fillText("NUEVO DESBLOQUEO: " + pendingReward.name, VIEW_W / 2, 88); }
+    if (pendingReward) {
+      ctx.fillStyle = pendingReward.kind === "weapon" ? "#5cf6ff" : "#72f1b8";
+      ctx.font = "bold 11px Courier New";
+      ctx.fillText("NUEVO DESBLOQUEO: " + pendingReward.name, VIEW_W / 2, 88);
+      if (pendingReward.kind === "character") {
+        const weaponNames = (pendingReward.weapons || []).map((index) => WEAPONS[index] && WEAPONS[index].short).filter(Boolean).join(" + ");
+        const specialNames = (pendingReward.specials || []).map((index) => SPECIALS[index] && SPECIALS[index].short).filter(Boolean).join(" + ");
+        ctx.fillStyle = "#ffe29a";
+        ctx.font = "9px Courier New";
+        ctx.fillText("EQUIPO DEL TUTORIAL · ARMAS: " + weaponNames + " · ESPECIALES: " + specialNames, VIEW_W / 2, 99);
+      }
+    }
 
     const pageSize = 5;
     const drawColumn = (items, unlocked, equipped, column, x, width) => {
@@ -4992,6 +5690,11 @@
     sky();
     if (state === "menu") {
       drawLevelSelectMenu();
+      drawMenuCursor();
+      return;
+    }
+    if (state === "character_loading") {
+      drawCharacterLoading();
       drawMenuCursor();
       return;
     }

@@ -37,8 +37,16 @@ const FONT = {
   " ": ["00000", "00000", "00000", "00000", "00000"],
   "-": ["00000", "00000", "11111", "00000", "00000"],
   ":": ["00000", "00100", "00000", "00100", "00000"],
+  "0": ["01110", "10001", "10011", "10101", "01110"],
   "1": ["00100", "01100", "00100", "00100", "01110"],
   "2": ["11110", "00001", "01110", "10000", "11111"],
+  "3": ["11110", "00001", "01110", "00001", "11110"],
+  "4": ["10010", "10010", "11111", "00010", "00010"],
+  "5": ["11111", "10000", "11110", "00001", "11110"],
+  "6": ["01110", "10000", "11110", "10001", "01110"],
+  "7": ["11111", "00001", "00010", "00100", "00100"],
+  "8": ["01110", "10001", "01110", "10001", "01110"],
+  "9": ["01110", "10001", "01111", "00001", "01110"],
 };
 
 function crc32(buf) {
@@ -142,7 +150,8 @@ function tileColor(id, ty) {
 function drawWorld(lvl, img, ox, oy, s, x0, x1) {
   x0 = Math.max(0, x0);
   x1 = Math.min(lvl.worldW, x1);
-  for (let ty = 0; ty < WORLD_H; ty++) {
+  const mapHeight = lvl.worldH || WORLD_H;
+  for (let ty = 0; ty < mapHeight; ty++) {
     for (let tx = x0; tx < x1; tx++) {
       const id = lvl.tiles[ty][tx];
       const c = tileColor(id, ty);
@@ -169,7 +178,7 @@ function renderLevelPreview(num, filename, title) {
   const lvl = L.buildLevel(num);
   const S = 8;
   const header = 36;
-  const full = makeBuf(lvl.worldW * S, WORLD_H * S + header, 245, 236, 220);
+  const full = makeBuf(lvl.worldW * S, (lvl.worldH || WORLD_H) * S + header, 245, 236, 220);
   fill(full, 0, 0, full.w, header, 28, 22, 40);
   text(full, 8, 8, title, 255, 220, 80, 2);
   drawWorld(lvl, full, 0, header, S, 0, lvl.worldW);
@@ -210,13 +219,14 @@ function renderLevelPreview(num, filename, title) {
   writePng(path.join(outDir, filename), full.w, full.h, full.pix);
 }
 
-function renderVerticalLevelPreview(filename, title) {
-  const lvl = L.buildLevel(3);
+function renderVerticalLevelPreview(levelNum, filename, title) {
+  const lvl = L.buildLevel(levelNum);
   const S = 6;
   const header = 36;
   const full = makeBuf(lvl.worldW * S + 120, lvl.worldH * S + header, 245, 236, 220);
   fill(full, 0, 0, full.w, header, 28, 22, 40);
-  text(full, 8, 8, title, 92, 246, 255, 2);
+  const titleScale = Math.max(1, Math.min(2, Math.floor((full.w - 16) / Math.max(1, title.length * 6))));
+  text(full, 8, 8, title, 92, 246, 255, titleScale);
 
   drawWorld(lvl, full, 0, header, S, 0, lvl.worldW);
 
@@ -240,6 +250,6 @@ function renderVerticalLevelPreview(filename, title) {
 
 renderLevelPreview(1, "preview-layout.png", "NIVEL 1: COSTA DE HIERRO");
 renderLevelPreview(2, "preview-layout-l2.png", "NIVEL 2: REACTOR RADIACTIVO");
-renderVerticalLevelPreview("preview-layout-l3.png", "NIVEL 3: TORRE DEL CATACLISMO");
+renderVerticalLevelPreview(19, "preview-layout-l3.png", "NIVEL 19: TORRE DEL CATACLISMO");
 
 console.log("Generated map previews successfully in", outDir);

@@ -65,8 +65,18 @@ if (fs.existsSync(newEnemyPath)) {
 }
 check(spritesSource.includes("campaignSprites.skimmer") && spritesSource.includes("campaignSprites.bombardier"), "los dos enemigos nuevos tienen idle, movimiento y ataque propios");
 check(spritesSource.includes("newEnemyArt.skimmer_walk") && spritesSource.includes("newEnemyArt.bombardier_walk"), "los dos enemigos nuevos conectan sus poses de desplazamiento");
+for (const [bossType, heroId] of [["agile_scout", "agile"], ["heavy_climber", "heavy"], ["field_medic", "medic"], ["field_technician", "technician"], ["cerberus", "phantom"]]) {
+  check(spritesSource.includes(`${bossType}: heroes.${heroId}`), `jefe tutorial ${bossType} usa directamente el sprite de ${heroId}`);
+}
 check(gameSource.includes("drop_bomb") && gameSource.includes("lastDecision === \"intercept\""), "los enemigos aéreos activan su pose de ataque al moverse o soltar bombas");
 check(gameSource.includes("function readySprite") && gameSource.includes("firstReadySprite(frame, locomotionFrame, set.walk, set.idle)"), "el render nunca dibuja un frame de atlas aún no cargado");
+check(!/firstReadySprite\(hero && hero\.select, hero && hero\.idle, SPR\.player && SPR\.player\.idle\)/.test(gameSource), "la selección no reutiliza el placeholder común para todos los personajes");
+const characterSelectSource = gameSource.slice(gameSource.indexOf("function drawCharacterSelect()"), gameSource.indexOf("function drawLoadout()"));
+check(gameSource.includes("function characterSpritesReady") && gameSource.includes('characterSpritesReady() ? "character_select" : "character_loading"'), "el selector espera a que los seis atlas estén listos antes de dibujarse");
+check(!characterSelectSource.includes("drawCharacterIcon("), "el selector nunca sustituye sprites por figuras geométricas");
+check(!gameSource.includes("drawPlayableFallback(p.move"), "el jugador no vuelve a una figura geométrica mientras se cargan sus sprites");
+check(gameSource.includes("wrapCanvasText(c.description") && gameSource.includes("CHARACTER_CARD_TEXT_WIDTH"), "las descripciones de personaje se ajustan dentro de su tarjeta");
+check(gameSource.includes("fitCanvasFont(levelTitle, cardW - 12") && gameSource.includes("fitCanvasFont(characterTitle, 164"), "los títulos largos se ajustan dentro de sus tarjetas");
 for (const type of ["piranha", "firebat", "turret", "shield", "mine", "drone", "sniper", "slime", "spore", "mutant", "teleporter", "xeno_scout", "tractor_unit", "mimic"]) {
   check(spritesSource.includes(`"${type}"`), `enemigo de campaña con entrada de atlas: ${type}`);
 }

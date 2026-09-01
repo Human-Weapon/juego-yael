@@ -17,12 +17,22 @@ const ctx = new Proxy({}, {
 });
 
 const listeners = Object.create(null);
-const classicIdleFrame = { tag: "classic-idle" };
-const agileIdleFrame = { tag: "agile-idle" };
-const heavyIdleFrame = { tag: "heavy-idle" };
-const unloadedClassicSelectFrame = { tag: "classic-select-unloaded", ready: false };
-const unloadedClassicCrouchFrame = { tag: "classic-crouch-unloaded", ready: false };
-const unloadedClassicRunFrame = { tag: "classic-run-unloaded", ready: false };
+const frame = (tag) => ({ tag, ready: true });
+const classicIdleFrame = frame("classic-idle");
+const classicSelectFrame = frame("classic-select");
+const agileIdleFrame = frame("agile-idle");
+const heavyIdleFrame = frame("heavy-idle");
+const heavyCrouchFrame = frame("heavy-crouch");
+const heavyRunFrame = frame("heavy-run");
+const heroFrames = (id, idle) => ({
+  idle,
+  select: id === "classic" ? classicSelectFrame : frame(`${id}-select`),
+  jump: frame(`${id}-jump`),
+  crouch: id === "heavy" ? heavyCrouchFrame : frame(`${id}-crouch`),
+  dash: frame(`${id}-dash`),
+  fire: frame(`${id}-fire`),
+  runFrames: [id === "heavy" ? heavyRunFrame : frame(`${id}-run`)],
+});
 const canvas = {
   style: {}, width: 960, height: 540,
   getContext: () => ctx,
@@ -35,9 +45,12 @@ const windowMock = {
   YAEL_SPRITES: { get: () => ({
     guns: {},
     heroes: {
-      classic: { idle: classicIdleFrame, select: unloadedClassicSelectFrame, crouch: unloadedClassicCrouchFrame, runFrames: [unloadedClassicRunFrame] },
-      agile: { idle: agileIdleFrame },
-      heavy: { idle: heavyIdleFrame },
+      classic: heroFrames("classic", classicIdleFrame),
+      agile: heroFrames("agile", agileIdleFrame),
+      heavy: heroFrames("heavy", heavyIdleFrame),
+      medic: heroFrames("medic", frame("medic-idle")),
+      technician: heroFrames("technician", frame("technician-idle")),
+      phantom: heroFrames("phantom", frame("phantom-idle")),
     },
   }) },
   innerWidth: 1280,
@@ -130,7 +143,7 @@ check(calls.some((call) => call.key === "translate"), "el puntero pixel-art se d
 ui.characterSelect(1);
 calls.length = 0;
 ui.draw();
-check(calls.some((call) => call.key === "drawImage" && call.args[0] === classicIdleFrame), "la selección usa un sprite visible de respaldo mientras carga la pose nueva");
+check(calls.some((call) => call.key === "drawImage" && call.args[0] === classicSelectFrame), "la selección usa la pose de sprite real del personaje");
 let characterUpdateError = null;
 try {
   ui.tick();
@@ -156,11 +169,11 @@ check(ui.menu().state === "menu", "el botón MENÚ vuelve a la selección de niv
 ui.crouch();
 calls.length = 0;
 ui.draw();
-check(calls.some((call) => call.key === "drawImage" && call.args[0] === heavyIdleFrame), "el personaje elegido conserva un sprite visible al agacharse mientras carga su pose propia");
+check(calls.some((call) => call.key === "drawImage" && call.args[0] === heavyCrouchFrame), "el personaje elegido usa su sprite propio al agacharse");
 ui.run();
 calls.length = 0;
 ui.draw();
-check(calls.some((call) => call.key === "drawImage" && call.args[0] === heavyIdleFrame), "el personaje elegido conserva un sprite visible al correr mientras carga su ciclo propio");
+check(calls.some((call) => call.key === "drawImage" && call.args[0] === heavyRunFrame), "el personaje elegido usa su sprite propio al correr");
 calls.length = 0;
 ui.renderAt(180);
 check(!calls.some((call) => call.key === "fillRect" && call.args[0] === 0 && call.args[1] === 0 && call.args[2] === 960 && call.args[3] === 540 && call.fillStyle === "rgba(180,200,255,0.12)"), "el juego no aplica flashes blancos periódicos a pantalla completa");
